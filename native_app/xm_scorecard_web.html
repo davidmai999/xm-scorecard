@@ -284,17 +284,11 @@
     <div class="calendar-head">
       <span class="calendar-title">財經日曆（事件風險參考）</span>
       <div class="calendar-controls">
-        <select id="calendarDays">
-          <option value="1">未來 1 天</option>
-          <option value="2" selected>未來 2 天</option>
-          <option value="3">未來 3 天</option>
-        </select>
-        <button id="calendarSettingsBtn">設定 API Key</button>
-        <button class="primary" id="calendarRefreshBtn">重新整理</button>
+        <button class="primary" id="openCalendarBtn">🌐 開啟財經日曆網站</button>
       </div>
     </div>
     <div class="calendar-body" id="calendarBody">
-      <p class="calendar-hint">點「重新整理」抓取近期經濟事件，幫助判斷事件風險這一項該打幾分。</p>
+      <p class="calendar-hint">點按鈕在瀏覽器開啟 TradingView 財經日曆，查看近期經濟事件，幫助判斷事件風險這一項該打幾分。</p>
     </div>
   </div>
 
@@ -339,6 +333,7 @@
       <button class="primary" id="settingsSaveBtn">儲存</button>
     </div>
   </div>
+
 </div>
 
 <div class="guide-overlay" id="guideOverlay">
@@ -657,21 +652,12 @@ guideOverlay.addEventListener("click", e => {
   if(e.target === guideOverlay) guideOverlay.classList.remove("active");
 });
 
-// ---------- API Key 設定（財經日曆用 Finnhub，即時報價用 Twelve Data，各自獨立） ----------
-const FINNHUB_KEY_STORAGE = "xm_scorecard_finnhub_key";
+// ---------- API Key 設定（即時報價用 Twelve Data） ----------
 const TWELVEDATA_KEY_STORAGE = "xm_scorecard_twelvedata_key";
 const settingsOverlay = document.getElementById("settingsOverlay");
 const calendarBody = document.getElementById("calendarBody");
 
 const KEY_CONFIG = {
-  finnhub: {
-    storageKey: FINNHUB_KEY_STORAGE,
-    title: "財經日曆設定（Finnhub）",
-    hint: `財經日曆資料來自 Finnhub。<br>
-      請自行到 <b>finnhub.io</b> 註冊帳號（免費），登入後在 Dashboard 複製你的 API Key 貼在下方。<br>
-      <b>提醒：財經日曆屬於 Finnhub 付費方案功能，免費方案目前會顯示查詢失敗。</b>`,
-    placeholder: "貼上你的 Finnhub API Key",
-  },
   twelvedata: {
     storageKey: TWELVEDATA_KEY_STORAGE,
     title: "即時報價設定（Twelve Data）",
@@ -682,10 +668,10 @@ const KEY_CONFIG = {
   },
 };
 
-let currentSettingsTarget = "finnhub";
+let currentSettingsTarget = "twelvedata";
 
 function hasNativeBridge(){
-  return !!(window.pywebview && window.pywebview.api && window.pywebview.api.fetch_economic_calendar);
+  return !!(window.pywebview && window.pywebview.api);
 }
 
 async function getSavedKey(storageKey){
@@ -708,9 +694,6 @@ async function saveKey(storageKey, key){
   try{ localStorage.setItem(storageKey, key); }catch(e){}
 }
 
-// 保留舊名稱給財經日曆的呼叫流程使用（對應 Finnhub）
-async function getSavedApiKey(){ return getSavedKey(FINNHUB_KEY_STORAGE); }
-
 async function openSettingsModal(target){
   currentSettingsTarget = target;
   const cfg = KEY_CONFIG[target];
@@ -722,7 +705,6 @@ async function openSettingsModal(target){
   settingsOverlay.classList.add("active");
 }
 
-document.getElementById("calendarSettingsBtn").addEventListener("click", () => openSettingsModal("finnhub"));
 document.getElementById("settingsCancelBtn").addEventListener("click", () => {
   settingsOverlay.classList.remove("active");
 });
@@ -735,84 +717,23 @@ document.getElementById("settingsSaveBtn").addEventListener("click", async () =>
   settingsOverlay.classList.remove("active");
 });
 
-function impactClass(impact){
-  const v = (impact || "").toLowerCase();
-  if(v === "high") return "impact-high";
-  if(v === "medium") return "impact-medium";
-  return "impact-low";
-}
+// ---------- 財經日曆（外部連結，不透過 API） ----------
+const CALENDAR_URL = "https://tw.tradingview.com/economic-calendar/";
 
-function impactLabel(impact){
-  const v = (impact || "").toLowerCase();
-  if(v === "high") return "高";
-  if(v === "medium") return "中";
-  if(v === "low") return "低";
-  return impact || "-";
-}
-
-function renderCalendarEvents(events){
-  if(!events || events.length === 0){
-    calendarBody.innerHTML = `<p class="calendar-hint">這段期間沒有查到經濟事件（也可能是所選幣別範圍內剛好沒有排定事件）。</p>`;
-    return;
-  }
-  // 高影響力事件優先排前面
-  const order = {high: 0, medium: 1, low: 2};
-  const sorted = [...events].sort((a, b) => {
-    const oa = order[(a.impact || "").toLowerCase()] ?? 3;
-    const ob = order[(b.impact || "").toLowerCase()] ?? 3;
-    if(oa !== ob) return oa - ob;
-    return (a.time || "").localeCompare(b.time || "");
-  });
-
-  const rows = sorted.slice(0, 30).map(ev => `
-    <tr>
-      <td>${escapeHtml(ev.time || ev.date || "-")}</td>
-      <td>${escapeHtml(ev.country || ev.currency || "-")}</td>
-      <td>${escapeHtml(ev.event || ev.name || "-")}</td>
-      <td class="${impactClass(ev.impact)}">${impactLabel(ev.impact)}</td>
-      <td>${escapeHtml(ev.actual ?? "-")}</td>
-      <td>${escapeHtml(ev.estimate ?? "-")}</td>
-      <td>${escapeHtml(ev.prev ?? "-")}</td>
-    </tr>
-  `).join("");
-
-  calendarBody.innerHTML = `
-    <table class="calendar-table">
-      <thead>
-        <tr><th>時間</th><th>國家</th><th>事件</th><th>影響力</th><th>實際</th><th>預期</th><th>前值</th></tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
-}
-
-document.getElementById("calendarRefreshBtn").addEventListener("click", async () => {
-  if(!hasNativeBridge()){
-    calendarBody.innerHTML = `<p class="calendar-hint">此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API）。</p>`;
-    return;
-  }
-  const apiKey = await getSavedApiKey();
-  if(!apiKey){
-    calendarBody.innerHTML = `<p class="calendar-error">尚未設定 API Key，請先點「設定 API Key」輸入。</p>`;
-    return;
-  }
-  const days = parseInt(document.getElementById("calendarDays").value, 10) || 2;
-  calendarBody.innerHTML = `<p class="calendar-loading">讀取中...</p>`;
-  try{
-    const result = await window.pywebview.api.fetch_economic_calendar(apiKey, days);
-    if(result && result.error){
-      calendarBody.innerHTML = `<p class="calendar-error">${escapeHtml(result.error)}</p>`;
-      return;
+document.getElementById("openCalendarBtn").addEventListener("click", async () => {
+  if(hasNativeBridge()){
+    try{
+      const result = await window.pywebview.api.open_external(CALENDAR_URL);
+      if(!result || !result.ok){
+        calendarBody.innerHTML = `<p class="calendar-error">開啟失敗：${escapeHtml(result && result.error || "未知錯誤")}</p>`;
+      }
+    }catch(e){
+      calendarBody.innerHTML = `<p class="calendar-error">開啟失敗：${escapeHtml(String(e))}</p>`;
     }
-    renderCalendarEvents(result ? result.events : []);
-  }catch(e){
-    calendarBody.innerHTML = `<p class="calendar-error">呼叫失敗：${escapeHtml(String(e))}</p>`;
+  }else{
+    window.open(CALENDAR_URL, "_blank");
   }
 });
-
-if(!hasNativeBridge()){
-  calendarBody.innerHTML = `<p class="calendar-hint">此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API），其餘評分功能不受影響。</p>`;
-}
 
 // ---------- 即時報價查詢 ----------
 const quoteBody = document.getElementById("quoteBody");
@@ -827,6 +748,7 @@ function fmtNum(n){
 }
 
 function renderQuote(q){
+  // Twelve Data 回傳欄位：close（現價）、change、percent_change、high、low、open、previous_close
   const change = Number(q.change);
   const changePct = Number(q.percent_change);
   const changeCls = change > 0 ? "impact-high" : (change < 0 ? "" : "impact-low");
