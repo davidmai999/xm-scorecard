@@ -331,13 +331,9 @@
 
 <div class="settings-overlay" id="settingsOverlay">
   <div class="settings-modal">
-    <h3>財經日曆設定</h3>
-    <p>
-      財經日曆資料來自 Finnhub，需要免費 API Key 才能使用。<br>
-      請自行到 <b>finnhub.io</b> 註冊帳號（免費），登入後在 Dashboard 複製你的 API Key 貼在下方。<br>
-      此功能僅離線桌面版支援，需要網路連線。
-    </p>
-    <input type="text" id="apiKeyInput" placeholder="貼上你的 Finnhub API Key">
+    <h3 id="settingsTitle">API Key 設定</h3>
+    <p id="settingsHint"></p>
+    <input type="text" id="apiKeyInput" placeholder="貼上你的 API Key">
     <div class="settings-modal-actions">
       <button id="settingsCancelBtn">取消</button>
       <button class="primary" id="settingsSaveBtn">儲存</button>
@@ -661,39 +657,72 @@ guideOverlay.addEventListener("click", e => {
   if(e.target === guideOverlay) guideOverlay.classList.remove("active");
 });
 
-// ---------- 財經日曆 ----------
-const CALENDAR_KEY_STORAGE = "xm_scorecard_finnhub_key";
+// ---------- API Key 設定（財經日曆用 Finnhub，即時報價用 Twelve Data，各自獨立） ----------
+const FINNHUB_KEY_STORAGE = "xm_scorecard_finnhub_key";
+const TWELVEDATA_KEY_STORAGE = "xm_scorecard_twelvedata_key";
 const settingsOverlay = document.getElementById("settingsOverlay");
 const calendarBody = document.getElementById("calendarBody");
+
+const KEY_CONFIG = {
+  finnhub: {
+    storageKey: FINNHUB_KEY_STORAGE,
+    title: "財經日曆設定（Finnhub）",
+    hint: `財經日曆資料來自 Finnhub。<br>
+      請自行到 <b>finnhub.io</b> 註冊帳號（免費），登入後在 Dashboard 複製你的 API Key 貼在下方。<br>
+      <b>提醒：財經日曆屬於 Finnhub 付費方案功能，免費方案目前會顯示查詢失敗。</b>`,
+    placeholder: "貼上你的 Finnhub API Key",
+  },
+  twelvedata: {
+    storageKey: TWELVEDATA_KEY_STORAGE,
+    title: "即時報價設定（Twelve Data）",
+    hint: `即時報價資料來自 Twelve Data。<br>
+      請自行到 <b>twelvedata.com</b> 註冊帳號（免費），登入後在 Dashboard 複製你的 API Key 貼在下方。<br>
+      免費方案涵蓋外匯、貴金屬、美股報價，每天 800 次、每分鐘 8 次呼叫上限。`,
+    placeholder: "貼上你的 Twelve Data API Key",
+  },
+};
+
+let currentSettingsTarget = "finnhub";
 
 function hasNativeBridge(){
   return !!(window.pywebview && window.pywebview.api && window.pywebview.api.fetch_economic_calendar);
 }
 
-async function getSavedApiKey(){
+async function getSavedKey(storageKey){
   try{
     if(window.storage){
-      const res = await window.storage.get(CALENDAR_KEY_STORAGE, false);
+      const res = await window.storage.get(storageKey, false);
       if(res && res.value) return res.value;
     }
   }catch(e){}
-  try{ return localStorage.getItem(CALENDAR_KEY_STORAGE) || ""; }catch(e){ return ""; }
+  try{ return localStorage.getItem(storageKey) || ""; }catch(e){ return ""; }
 }
 
-async function saveApiKey(key){
+async function saveKey(storageKey, key){
   try{
     if(window.storage){
-      await window.storage.set(CALENDAR_KEY_STORAGE, key, false);
+      await window.storage.set(storageKey, key, false);
       return;
     }
   }catch(e){}
-  try{ localStorage.setItem(CALENDAR_KEY_STORAGE, key); }catch(e){}
+  try{ localStorage.setItem(storageKey, key); }catch(e){}
 }
 
-document.getElementById("calendarSettingsBtn").addEventListener("click", async () => {
-  document.getElementById("apiKeyInput").value = await getSavedApiKey();
+// 保留舊名稱給財經日曆的呼叫流程使用（對應 Finnhub）
+async function getSavedApiKey(){ return getSavedKey(FINNHUB_KEY_STORAGE); }
+
+async function openSettingsModal(target){
+  currentSettingsTarget = target;
+  const cfg = KEY_CONFIG[target];
+  document.getElementById("settingsTitle").textContent = cfg.title;
+  document.getElementById("settingsHint").innerHTML = cfg.hint;
+  const input = document.getElementById("apiKeyInput");
+  input.placeholder = cfg.placeholder;
+  input.value = await getSavedKey(cfg.storageKey);
   settingsOverlay.classList.add("active");
-});
+}
+
+document.getElementById("calendarSettingsBtn").addEventListener("click", () => openSettingsModal("finnhub"));
 document.getElementById("settingsCancelBtn").addEventListener("click", () => {
   settingsOverlay.classList.remove("active");
 });
@@ -702,7 +731,7 @@ settingsOverlay.addEventListener("click", e => {
 });
 document.getElementById("settingsSaveBtn").addEventListener("click", async () => {
   const key = document.getElementById("apiKeyInput").value.trim();
-  await saveApiKey(key);
+  await saveKey(KEY_CONFIG[currentSettingsTarget].storageKey, key);
   settingsOverlay.classList.remove("active");
 });
 
@@ -788,10 +817,7 @@ if(!hasNativeBridge()){
 // ---------- 即時報價查詢 ----------
 const quoteBody = document.getElementById("quoteBody");
 
-document.getElementById("quoteSettingsBtn").addEventListener("click", async () => {
-  document.getElementById("apiKeyInput").value = await getSavedApiKey();
-  settingsOverlay.classList.add("active");
-});
+document.getElementById("quoteSettingsBtn").addEventListener("click", () => openSettingsModal("twelvedata"));
 
 function fmtNum(n){
   if(n === null || n === undefined || n === "") return "-";
@@ -801,8 +827,8 @@ function fmtNum(n){
 }
 
 function renderQuote(q){
-  const change = Number(q.d);
-  const changePct = Number(q.dp);
+  const change = Number(q.change);
+  const changePct = Number(q.percent_change);
   const changeCls = change > 0 ? "impact-high" : (change < 0 ? "" : "impact-low");
   const changeSign = change > 0 ? "▲" : (change < 0 ? "▼" : "");
   quoteBody.innerHTML = `
@@ -812,14 +838,14 @@ function renderQuote(q){
       </thead>
       <tbody>
         <tr>
-          <td>${escapeHtml(q.symbol_used || "-")}</td>
-          <td><b>${fmtNum(q.c)}</b></td>
+          <td>${escapeHtml(q.symbol_used || q.symbol || "-")}</td>
+          <td><b>${fmtNum(q.close)}</b></td>
           <td class="${changeCls}">${changeSign}${fmtNum(Math.abs(change || 0))}</td>
           <td class="${changeCls}">${fmtNum(changePct)}%</td>
-          <td>${fmtNum(q.h)}</td>
-          <td>${fmtNum(q.l)}</td>
-          <td>${fmtNum(q.o)}</td>
-          <td>${fmtNum(q.pc)}</td>
+          <td>${fmtNum(q.high)}</td>
+          <td>${fmtNum(q.low)}</td>
+          <td>${fmtNum(q.open)}</td>
+          <td>${fmtNum(q.previous_close)}</td>
         </tr>
       </tbody>
     </table>
@@ -831,7 +857,7 @@ async function queryQuote(){
     quoteBody.innerHTML = `<p class="calendar-hint">此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API）。</p>`;
     return;
   }
-  const apiKey = await getSavedApiKey();
+  const apiKey = await getSavedKey(TWELVEDATA_KEY_STORAGE);
   if(!apiKey){
     quoteBody.innerHTML = `<p class="calendar-error">尚未設定 API Key，請先點「設定 API Key」輸入。</p>`;
     return;
