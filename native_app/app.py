@@ -9,21 +9,20 @@ XM 市場選擇五濾網評分系統 - 離線桌面應用（原生視窗版）
 打包成 .exe 之後，使用者只要雙擊執行檔就能開啟，
 不需要安裝 Python 或任何額外程式。
 
-新增：財經日曆 + 即時報價功能
+新增：財經日曆連結 + 即時報價功能
 ------------------------------
-瀏覽器直接呼叫外部 API 常會被瀏覽器的 CORS 安全限制擋下來，
+財經日曆：直接用系統預設瀏覽器開啟外部財經日曆網站（TradingView），
+不透過 API 抓取資料，所以不需要申請帳號、不會有免費/付費方案限制的問題。
+網頁端呼叫方式：window.pywebview.api.open_external(url)
+
+即時報價：瀏覽器直接呼叫外部 API 常會被瀏覽器的 CORS 安全限制擋下來，
 所以改成由這支 Python 程式（不受瀏覽器 CORS 限制）幫忙呼叫 API，
 再把結果透過 pywebview 的 js_api 橋接傳回網頁畫面顯示。
-網頁端呼叫方式：
-  window.pywebview.api.fetch_economic_calendar(apiKey, daysAhead)   -- 資料來源：Finnhub
-  window.pywebview.api.fetch_quote(apiKey, symbol)                  -- 資料來源：Twelve Data
+網頁端呼叫方式：window.pywebview.api.fetch_quote(apiKey, symbol)  -- 資料來源：Twelve Data
 
-需要網路連線，且需要使用者自行申請免費 API Key
-（申請帳號這部分請自行操作，這裡不會幫忙處理帳密）：
-  財經日曆：https://finnhub.io （注意：財經日曆屬於 Finnhub 付費方案功能，
-            免費方案會回傳 403 錯誤，目前沒有免費管道）
-  即時報價：https://twelvedata.com （免費方案涵蓋外匯、貴金屬、美股即時報價，
-            每天 800 次、每分鐘 8 次呼叫上限）
+即時報價需要網路連線，且需要使用者自行到 https://twelvedata.com 申請免費 API Key
+（申請帳號這部分請自行操作，這裡不會幫忙處理帳密）。
+免費方案涵蓋外匯、貴金屬、美股即時報價，每天 800 次、每分鐘 8 次呼叫上限。
 
 報價僅供評分時參考用，不是即時成交報價，也不是交易依據，
 實際下單價格請以 XM 平台當下顯示的報價為準。
@@ -31,13 +30,13 @@ XM 市場選擇五濾網評分系統 - 離線桌面應用（原生視窗版）
 
 import os
 import sys
-from datetime import date, timedelta
+import webbrowser
 
 import webview
 
 try:
     import requests
-except ImportError:  # 萬一環境沒裝 requests，財經日曆功能會回傳錯誤訊息，不影響評分表其他功能
+except ImportError:  # 萬一環境沒裝 requests，即時報價功能會回傳錯誤訊息，不影響評分表其他功能
     requests = None
 
 
@@ -56,58 +55,18 @@ def resource_path(relative_path: str) -> str:
 class Api:
     """透過 pywebview 暴露給網頁 JavaScript 呼叫的橋接函式。"""
 
-    def fetch_economic_calendar(self, api_key: str, days_ahead: int = 2):
-        """呼叫 Finnhub 財經日曆 API，回傳未來 N 天的經濟事件列表。
+    def open_external(self, url: str):
+        """在系統預設瀏覽器開啟指定網址（例如財經日曆網站）。
 
         回傳格式：
-          成功：{"events": [...]}
-          失敗：{"error": "錯誤訊息文字"}
+          成功：{"ok": True}
+          失敗：{"ok": False, "error": "錯誤訊息文字"}
         """
-        if not requests:
-            return {"error": "伺服器端缺少 requests 套件，無法呼叫網路 API。"}
-
-        if not api_key or not api_key.strip():
-            return {"error": "尚未設定 Finnhub API Key，請先到設定欄位輸入。"}
-
         try:
-            days_ahead = max(1, min(int(days_ahead), 14))
-        except (TypeError, ValueError):
-            days_ahead = 2
-
-        today = date.today()
-        to_date = today + timedelta(days=days_ahead)
-
-        try:
-            resp = requests.get(
-                "https://finnhub.io/api/v1/calendar/economic",
-                params={
-                    "from": today.isoformat(),
-                    "to": to_date.isoformat(),
-                    "token": api_key.strip(),
-                },
-                timeout=12,
-            )
-        except requests.exceptions.RequestException as e:
-            return {"error": f"連線失敗，請確認網路連線是否正常：{e}"}
-
-        if resp.status_code == 401:
-            return {"error": "API Key 無效，請確認在 finnhub.io 複製的金鑰是否正確。"}
-        if resp.status_code == 429:
-            return {"error": "已達 API 呼叫次數上限，請稍後再試（免費方案有每分鐘呼叫次數限制）。"}
-        if resp.status_code != 200:
-            return {"error": f"API 回應異常（狀態碼 {resp.status_code}），請稍後再試。"}
-
-        try:
-            data = resp.json()
-        except ValueError:
-            return {"error": "API 回傳格式異常，無法解析。"}
-
-        # Finnhub 回傳鍵名可能隨版本調整，這裡盡量兼容常見的欄位命名
-        events = data.get("economicCalendar") or data.get("economic_calendar") or []
-        if not isinstance(events, list):
-            events = []
-
-        return {"events": events}
+            webbrowser.open(url)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     @staticmethod
     def _normalize_symbol(raw_symbol: str) -> str:
