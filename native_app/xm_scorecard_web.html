@@ -173,6 +173,46 @@
   }
   .calendar-title{font-size:14px;font-weight:600;color:var(--accent);}
   .calendar-controls{display:flex;gap:8px;align-items:center;}
+  .toggle-switch{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    color:var(--text-dim);
+    cursor:pointer;
+    user-select:none;
+  }
+  .toggle-switch input{display:none;}
+  .toggle-slider{
+    position:relative;
+    width:34px;
+    height:18px;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:20px;
+    transition:background .2s, border-color .2s;
+    flex-shrink:0;
+  }
+  .toggle-slider::before{
+    content:"";
+    position:absolute;
+    top:1px;
+    left:1px;
+    width:14px;
+    height:14px;
+    background:var(--text-dim);
+    border-radius:50%;
+    transition:transform .2s, background .2s;
+  }
+  .toggle-switch input:checked + .toggle-slider{
+    background:var(--accent-dim);
+    border-color:var(--accent);
+  }
+  .toggle-switch input:checked + .toggle-slider::before{
+    transform:translateX(16px);
+    background:var(--accent);
+  }
+  .toggle-switch:hover .toggle-label{color:var(--text);}
   select{
     background:var(--panel-alt);
     border:1px solid var(--border);
@@ -299,6 +339,11 @@
         <input type="text" id="quoteSymbolInput" placeholder="例如 EURUSD、XAUUSD、AAPL" style="width:160px;">
         <button id="quoteSettingsBtn">設定 API Key</button>
         <button class="primary" id="quoteQueryBtn">查詢報價</button>
+        <label class="toggle-switch" title="開啟後，查詢成功會自動把該商品加入下方市場列表">
+          <input type="checkbox" id="autoAddToggle">
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">查詢後自動加入市場</span>
+        </label>
       </div>
     </div>
     <div class="calendar-body" id="quoteBody">
@@ -588,20 +633,22 @@ function escapeHtml(str){
   return div.innerHTML;
 }
 
-function addMarket(){
+function addMarket(nameOverride){
+  const isAuto = nameOverride !== undefined;
   const input = document.getElementById("newMarketName");
-  const name = input.value.trim();
-  if(!name) return;
+  const name = isAuto ? nameOverride.trim() : input.value.trim();
+  if(!name) return "empty";
   if(markets.some(m => m.name.toLowerCase() === name.toLowerCase())){
-    alert("市場「" + name + "」已存在");
-    return;
+    if(!isAuto) alert("市場「" + name + "」已存在");
+    return "duplicate";
   }
   const scores = {};
   CRITERIA.forEach(c => scores[c.key] = 0);
   markets.push({id: "m" + Date.now() + Math.random().toString(16).slice(2), name, scores, note: ""});
-  input.value = "";
+  if(!isAuto) input.value = "";
   render();
   saveMarkets();
+  return "added";
 }
 
 function exportCsv(){
@@ -797,6 +844,19 @@ async function queryQuote(){
       return;
     }
     renderQuote(result.quote);
+
+    // 開關開啟時，查詢成功後自動把該商品加入下方市場列表
+    if(document.getElementById("autoAddToggle").checked){
+      const addResult = addMarket(symbol);
+      const note = document.createElement("p");
+      note.className = addResult === "duplicate" ? "calendar-hint" : "calendar-hint";
+      if(addResult === "added"){
+        note.textContent = `已自動加入市場：${symbol}`;
+      }else if(addResult === "duplicate"){
+        note.textContent = `市場「${symbol}」已存在，未重複加入`;
+      }
+      if(note.textContent) quoteBody.appendChild(note);
+    }
   }catch(e){
     quoteBody.innerHTML = `<p class="calendar-error">呼叫失敗：${escapeHtml(String(e))}</p>`;
   }
@@ -805,6 +865,14 @@ async function queryQuote(){
 document.getElementById("quoteQueryBtn").addEventListener("click", queryQuote);
 document.getElementById("quoteSymbolInput").addEventListener("keydown", e => {
   if(e.key === "Enter") queryQuote();
+});
+
+// 記住「查詢後自動加入市場」開關的開/關狀態
+const AUTO_ADD_STORAGE = "xm_scorecard_auto_add_toggle";
+const autoAddToggle = document.getElementById("autoAddToggle");
+getSavedKey(AUTO_ADD_STORAGE).then(v => { autoAddToggle.checked = v === "1"; });
+autoAddToggle.addEventListener("change", () => {
+  saveKey(AUTO_ADD_STORAGE, autoAddToggle.checked ? "1" : "0");
 });
 
 if(!hasNativeBridge()){
