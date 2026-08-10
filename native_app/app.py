@@ -20,7 +20,11 @@ XM 市場選擇五濾網評分系統 - 離線桌面應用（原生視窗版）
 再把結果透過 pywebview 的 js_api 橋接傳回網頁畫面顯示。
 網頁端呼叫方式：window.pywebview.api.fetch_quote(apiKey, symbol)  -- 資料來源：Twelve Data
 
-即時報價需要網路連線，且需要使用者自行到 https://twelvedata.com 申請免費 API Key
+策略指標分析：呼叫 Twelve Data 的技術指標 API（RSI、MACD），
+幫助判斷評分表裡「技術結構」這一項該打幾分。
+網頁端呼叫方式：window.pywebview.api.fetch_technical_indicators(apiKey, symbol, interval)
+
+即時報價與策略指標需要網路連線，且需要使用者自行到 https://twelvedata.com 申請免費 API Key
 （申請帳號這部分請自行操作，這裡不會幫忙處理帳密）。
 免費方案涵蓋外匯、貴金屬、美股即時報價，每天 800 次、每分鐘 8 次呼叫上限。
 
@@ -138,6 +142,77 @@ class Api:
 
         data["symbol_used"] = normalized
         return {"quote": data}
+
+    def fetch_technical_indicators(self, api_key: str, symbol: str, interval: str = "1day"):
+        """呼叫 Twelve Data 技術指標 API，取得最新一筆 RSI 與 MACD。
+
+        回傳格式：
+          成功：{"indicators": {...}}
+          失敗：{"error": "錯誤訊息文字"}
+
+        提醒：指標數值僅供評分時參考（對應「技術結構」這一項），
+        不是自動交易訊號，最終判斷仍需自行確認圖表。
+        """
+        if not requests:
+            return {"error": "伺服器端缺少 requests 套件，無法呼叫網路 API。"}
+
+        if not api_key or not api_key.strip():
+            return {"error": "尚未設定 Twelve Data API Key，請先到設定欄位輸入。"}
+
+        if not symbol or not symbol.strip():
+            return {"error": "請輸入商品代碼，例如 EURUSD、XAUUSD、AAPL。"}
+
+        normalized = self._normalize_symbol(symbol)
+        key = api_key.strip()
+
+        def _call(endpoint: str):
+            try:
+                resp = requests.get(
+                    f"https://api.twelvedata.com/{endpoint}",
+                    params={"symbol": normalized, "interval": interval, "apikey": key},
+                    timeout=12,
+                )
+            except requests.exceptions.RequestException as e:
+                return None, f"連線失敗，請確認網路連線是否正常：{e}"
+
+            if resp.status_code == 429:
+                return None, "已達 API 呼叫次數上限，請稍後再試（免費方案有每分鐘/每日呼叫次數限制）。"
+            if resp.status_code != 200:
+                return None, f"API 回應異常（狀態碼 {resp.status_code}），請稍後再試。"
+
+            try:
+                data = resp.json()
+            except ValueError:
+                return None, "API 回傳格式異常，無法解析。"
+
+            if isinstance(data, dict) and data.get("status") == "error":
+                msg = data.get("message", "未知錯誤")
+                return None, (
+                    f"查詢「{normalized}」的 {endpoint.upper()} 失敗：{msg}\n"
+                    "請確認 API Key 是否正確，或代碼格式是否正確（外匯/貴金屬請用 XXX/YYY 格式）。"
+                )
+
+            values = data.get("values") or []
+            return (values[0] if values else None), None
+
+        rsi_latest, err = _call("rsi")
+        if err:
+            return {"error": err}
+
+        macd_latest, err = _call("macd")
+        if err:
+            return {"error": err}
+
+        return {
+            "indicators": {
+                "symbol_used": normalized,
+                "interval": interval,
+                "rsi": rsi_latest.get("rsi") if rsi_latest else None,
+                "macd": macd_latest.get("macd") if macd_latest else None,
+                "macd_signal": macd_latest.get("macd_signal") if macd_latest else None,
+                "macd_hist": macd_latest.get("macd_hist") if macd_latest else None,
+            }
+        }
 
 
 def main():
