@@ -340,6 +340,7 @@
         <button id="quoteApplyBtn">🔗 前往申請 API Key</button>
         <button id="quoteSettingsBtn">設定 API Key</button>
         <button class="primary" id="quoteQueryBtn">查詢報價</button>
+        <button id="refreshAllBtn">🔄 全部重新查詢</button>
         <label class="toggle-switch" title="開啟後，查詢成功會自動把該商品加入下方市場列表">
           <input type="checkbox" id="autoAddToggle">
           <span class="toggle-slider"></span>
@@ -486,6 +487,8 @@
           點「🔗 前往申請 API Key」自動開啟申請頁面，申請完成後回到軟體點「設定 API Key」貼上即可
           （詳細申請步驟圖文說明請參考另外附上的「如何申請API金鑰」文件）。
           每次查詢的結果會累積保留在下方，不會被新的查詢蓋掉，方便回頭比對。
+          如果評分表裡已經有好幾個市場，也可以點「🔄 全部重新查詢」一次把所有已列入的商品都重新查一次現價，
+          系統會自動每隔幾秒查一個，不用擔心超過免費方案的呼叫上限。
         </p>
         <p class="guide-q">🔘 查詢後自動加入市場</p>
         <p class="guide-where">
@@ -933,6 +936,70 @@ document.getElementById("quoteQueryBtn").addEventListener("click", queryQuote);
 document.getElementById("quoteSymbolInput").addEventListener("keydown", e => {
   if(e.key === "Enter") queryQuote();
 });
+
+// ---------- 一鍵刷新全部市場報價 ----------
+let isRefreshingAll = false;
+const REFRESH_ALL_DELAY_MS = 8000; // 間隔 8 秒，避免瞬間超過免費方案每分鐘呼叫上限
+
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function refreshAllQuotes(){
+  if(isRefreshingAll) return;
+
+  if(!hasNativeBridge()){
+    setQuoteStatus("此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API）。", "calendar-hint");
+    return;
+  }
+  if(markets.length === 0){
+    setQuoteStatus("目前沒有市場資料可查詢，請先在下方「＋ 新增市場」加入商品。", "calendar-error");
+    return;
+  }
+  const apiKey = await getSavedKey(TWELVEDATA_KEY_STORAGE);
+  if(!apiKey){
+    setQuoteStatus("尚未設定 API Key，請先點「前往申請 API Key」註冊，再點「設定 API Key」貼上。", "calendar-error");
+    return;
+  }
+
+  isRefreshingAll = true;
+  const refreshBtn = document.getElementById("refreshAllBtn");
+  refreshBtn.disabled = true;
+
+  const names = markets.map(m => m.name);
+  let successCount = 0;
+  let failCount = 0;
+
+  for(let i = 0; i < names.length; i++){
+    const name = names[i];
+    setQuoteStatus(`重新查詢中（${i + 1}/${names.length}）：${name}`, "calendar-loading");
+    try{
+      const result = await window.pywebview.api.fetch_quote(apiKey, name);
+      if(result && result.error){
+        failCount++;
+      }else{
+        const now = new Date();
+        quoteHistory.unshift({time: formatTimestamp(now), quote: result.quote});
+        renderQuoteHistory();
+        successCount++;
+      }
+    }catch(e){
+      failCount++;
+    }
+    if(i < names.length - 1){
+      await sleep(REFRESH_ALL_DELAY_MS);
+    }
+  }
+
+  isRefreshingAll = false;
+  refreshBtn.disabled = false;
+  setQuoteStatus(
+    `全部重新查詢完成：成功 ${successCount} 筆${failCount > 0 ? `，失敗 ${failCount} 筆` : ""}。`,
+    failCount > 0 ? "calendar-error" : "calendar-hint"
+  );
+}
+
+document.getElementById("refreshAllBtn").addEventListener("click", refreshAllQuotes);
 
 // 記住「查詢後自動加入市場」開關的開/關狀態
 const AUTO_ADD_STORAGE = "xm_scorecard_auto_add_toggle";
