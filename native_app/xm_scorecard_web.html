@@ -337,6 +337,7 @@
       <span class="calendar-title">即時報價查詢（參考用）</span>
       <div class="calendar-controls">
         <input type="text" id="quoteSymbolInput" placeholder="例如 EURUSD、XAUUSD、AAPL" style="width:160px;">
+        <button id="quoteApplyBtn">🔗 前往申請 API Key</button>
         <button id="quoteSettingsBtn">設定 API Key</button>
         <button class="primary" id="quoteQueryBtn">查詢報價</button>
         <label class="toggle-switch" title="開啟後，查詢成功會自動把該商品加入下方市場列表">
@@ -347,7 +348,8 @@
       </div>
     </div>
     <div class="calendar-body" id="quoteBody">
-      <p class="calendar-hint">輸入商品代碼後點「查詢報價」。報價僅供評分參考，非即時成交價，實際下單請以 XM 平台報價為準。</p>
+      <p class="calendar-hint" id="quoteStatus">輸入商品代碼後點「查詢報價」。報價僅供評分參考，非即時成交價，實際下單請以 XM 平台報價為準。查詢紀錄會保留在下方，不會被新查詢覆蓋。</p>
+      <div id="quoteHistoryContainer"></div>
     </div>
   </div>
 
@@ -468,6 +470,32 @@
           <tr><td>12–19 分</td><td>次要觀察市場</td></tr>
           <tr><td>0–11 分</td><td>暫時放掉或等待</td></tr>
         </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>輔助工具怎麼用（財經日曆／即時報價）</h3>
+        <p class="guide-q">🌐 財經日曆按鈕</p>
+        <p class="guide-where">
+          點畫面上方「開啟財經日曆網站」，會直接用瀏覽器打開 TradingView 財經日曆頁面，
+          不需要額外申請帳號，看畫面上近期的經濟事件，幫助判斷「事件風險」這一項該打幾分。
+        </p>
+        <p class="guide-q">💰 即時報價查詢</p>
+        <p class="guide-where">
+          輸入商品代碼（例如 <code>EURUSD</code>、<code>XAUUSD</code>）後點「查詢報價」，
+          可以看到目前價格、漲跌、當日高低點。<b>這個功能第一次使用前要先申請一組免費 API Key</b>：
+          點「🔗 前往申請 API Key」自動開啟申請頁面，申請完成後回到軟體點「設定 API Key」貼上即可
+          （詳細申請步驟圖文說明請參考另外附上的「如何申請API金鑰」文件）。
+          每次查詢的結果會累積保留在下方，不會被新的查詢蓋掉，方便回頭比對。
+        </p>
+        <p class="guide-q">🔘 查詢後自動加入市場</p>
+        <p class="guide-where">
+          即時報價旁邊有一個開關，<b>開啟</b>之後查詢報價成功會自動把該商品加進下方的評分市場列表，
+          省去手動再打一次名稱的步驟；<b>關閉</b>則只查報價、不影響市場列表。這個開關的開/關狀態會被記住，
+          下次開啟軟體不用重設。
+        </p>
+        <p class="guide-where" style="margin-top:8px;">
+          這些都是輔助功能，就算不申請 API Key、完全不用這幾個按鈕，也不影響評分表本身的核心功能。
+        </p>
       </div>
 
       <div class="guide-section">
@@ -681,7 +709,7 @@ function clearAll(){
   }
 }
 
-document.getElementById("addBtn").addEventListener("click", addMarket);
+document.getElementById("addBtn").addEventListener("click", () => addMarket());
 document.getElementById("newMarketName").addEventListener("keydown", e => {
   if(e.key === "Enter") addMarket();
 });
@@ -784,8 +812,27 @@ document.getElementById("openCalendarBtn").addEventListener("click", async () =>
 
 // ---------- 即時報價查詢 ----------
 const quoteBody = document.getElementById("quoteBody");
+const quoteStatus = document.getElementById("quoteStatus");
+const quoteHistoryContainer = document.getElementById("quoteHistoryContainer");
+const TWELVEDATA_APPLY_URL = "https://twelvedata.com/register";
+let quoteHistory = [];
 
 document.getElementById("quoteSettingsBtn").addEventListener("click", () => openSettingsModal("twelvedata"));
+
+document.getElementById("quoteApplyBtn").addEventListener("click", async () => {
+  if(hasNativeBridge()){
+    try{
+      const result = await window.pywebview.api.open_external(TWELVEDATA_APPLY_URL);
+      if(!result || !result.ok){
+        setQuoteStatus(`開啟失敗：${result && result.error || "未知錯誤"}`, "calendar-error");
+      }
+    }catch(e){
+      setQuoteStatus(`開啟失敗：${String(e)}`, "calendar-error");
+    }
+  }else{
+    window.open(TWELVEDATA_APPLY_URL, "_blank");
+  }
+});
 
 function fmtNum(n){
   if(n === null || n === undefined || n === "") return "-";
@@ -794,71 +841,91 @@ function fmtNum(n){
   return num.toLocaleString(undefined, {maximumFractionDigits: 5});
 }
 
-function renderQuote(q){
-  // Twelve Data 回傳欄位：close（現價）、change、percent_change、high、low、open、previous_close
-  const change = Number(q.change);
-  const changePct = Number(q.percent_change);
-  const changeCls = change > 0 ? "impact-high" : (change < 0 ? "" : "impact-low");
-  const changeSign = change > 0 ? "▲" : (change < 0 ? "▼" : "");
-  quoteBody.innerHTML = `
+function formatTimestamp(d){
+  const p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function setQuoteStatus(text, cls){
+  quoteStatus.textContent = text;
+  quoteStatus.className = cls || "calendar-hint";
+}
+
+function renderQuoteHistory(){
+  if(quoteHistory.length === 0){
+    quoteHistoryContainer.innerHTML = "";
+    return;
+  }
+  const rows = quoteHistory.map(item => {
+    const q = item.quote;
+    const change = Number(q.change);
+    const changePct = Number(q.percent_change);
+    const changeCls = change > 0 ? "impact-high" : (change < 0 ? "" : "impact-low");
+    const changeSign = change > 0 ? "▲" : (change < 0 ? "▼" : "");
+    return `
+      <tr>
+        <td>${escapeHtml(item.time)}</td>
+        <td>${escapeHtml(q.symbol_used || q.symbol || "-")}</td>
+        <td><b>${fmtNum(q.close)}</b></td>
+        <td class="${changeCls}">${changeSign}${fmtNum(Math.abs(change || 0))}</td>
+        <td class="${changeCls}">${fmtNum(changePct)}%</td>
+        <td>${fmtNum(q.high)}</td>
+        <td>${fmtNum(q.low)}</td>
+        <td>${fmtNum(q.open)}</td>
+        <td>${fmtNum(q.previous_close)}</td>
+      </tr>
+    `;
+  }).join("");
+  quoteHistoryContainer.innerHTML = `
     <table class="calendar-table">
       <thead>
-        <tr><th>代碼</th><th>現價</th><th>漲跌</th><th>漲跌%</th><th>今日高</th><th>今日低</th><th>開盤</th><th>昨收</th></tr>
+        <tr><th>查詢時間</th><th>代碼</th><th>現價</th><th>漲跌</th><th>漲跌%</th><th>今日高</th><th>今日低</th><th>開盤</th><th>昨收</th></tr>
       </thead>
-      <tbody>
-        <tr>
-          <td>${escapeHtml(q.symbol_used || q.symbol || "-")}</td>
-          <td><b>${fmtNum(q.close)}</b></td>
-          <td class="${changeCls}">${changeSign}${fmtNum(Math.abs(change || 0))}</td>
-          <td class="${changeCls}">${fmtNum(changePct)}%</td>
-          <td>${fmtNum(q.high)}</td>
-          <td>${fmtNum(q.low)}</td>
-          <td>${fmtNum(q.open)}</td>
-          <td>${fmtNum(q.previous_close)}</td>
-        </tr>
-      </tbody>
+      <tbody>${rows}</tbody>
     </table>
   `;
 }
 
 async function queryQuote(){
   if(!hasNativeBridge()){
-    quoteBody.innerHTML = `<p class="calendar-hint">此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API）。</p>`;
+    setQuoteStatus("此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API）。", "calendar-hint");
     return;
   }
   const apiKey = await getSavedKey(TWELVEDATA_KEY_STORAGE);
   if(!apiKey){
-    quoteBody.innerHTML = `<p class="calendar-error">尚未設定 API Key，請先點「設定 API Key」輸入。</p>`;
+    setQuoteStatus("尚未設定 API Key，請先點「前往申請 API Key」註冊，再點「設定 API Key」貼上。", "calendar-error");
     return;
   }
   const symbol = document.getElementById("quoteSymbolInput").value.trim();
   if(!symbol){
-    quoteBody.innerHTML = `<p class="calendar-error">請先輸入商品代碼，例如 EURUSD、XAUUSD。</p>`;
+    setQuoteStatus("請先輸入商品代碼，例如 EURUSD、XAUUSD。", "calendar-error");
     return;
   }
-  quoteBody.innerHTML = `<p class="calendar-loading">查詢中...</p>`;
+  setQuoteStatus("查詢中...", "calendar-loading");
   try{
     const result = await window.pywebview.api.fetch_quote(apiKey, symbol);
     if(result && result.error){
-      quoteBody.innerHTML = `<p class="calendar-error">${escapeHtml(result.error)}</p>`;
+      setQuoteStatus(result.error, "calendar-error");
       return;
     }
-    renderQuote(result.quote);
+
+    const now = new Date();
+    quoteHistory.unshift({time: formatTimestamp(now), quote: result.quote});
+    renderQuoteHistory();
 
     // 開關開啟時，查詢成功後自動把該商品加入下方市場列表
+    let statusText = `查詢成功（${formatTimestamp(now)}）`;
     if(document.getElementById("autoAddToggle").checked){
       const addResult = addMarket(symbol);
-      const note = document.createElement("p");
-      note.className = addResult === "duplicate" ? "calendar-hint" : "calendar-hint";
       if(addResult === "added"){
-        note.textContent = `已自動加入市場：${symbol}`;
+        statusText += `，已自動加入市場：${symbol}`;
       }else if(addResult === "duplicate"){
-        note.textContent = `市場「${symbol}」已存在，未重複加入`;
+        statusText += `，市場「${symbol}」已存在，未重複加入`;
       }
-      if(note.textContent) quoteBody.appendChild(note);
     }
+    setQuoteStatus(statusText, "calendar-hint");
   }catch(e){
-    quoteBody.innerHTML = `<p class="calendar-error">呼叫失敗：${escapeHtml(String(e))}</p>`;
+    setQuoteStatus(`呼叫失敗：${String(e)}`, "calendar-error");
   }
 }
 
@@ -876,7 +943,7 @@ autoAddToggle.addEventListener("change", () => {
 });
 
 if(!hasNativeBridge()){
-  quoteBody.innerHTML = `<p class="calendar-hint">此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API），其餘評分功能不受影響。</p>`;
+  setQuoteStatus("此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API），其餘評分功能不受影響。", "calendar-hint");
 }
 
 renderFilterRef();
