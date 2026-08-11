@@ -354,6 +354,27 @@
     </div>
   </div>
 
+  <div class="calendar-panel" id="indicatorPanel">
+    <div class="calendar-head">
+      <span class="calendar-title">策略指標分析（RSI／MACD，參考用）</span>
+      <div class="calendar-controls">
+        <input type="text" id="indicatorSymbolInput" placeholder="例如 EURUSD、XAUUSD、AAPL" style="width:160px;">
+        <select id="indicatorInterval">
+          <option value="15min">15分鐘</option>
+          <option value="1h">1小時</option>
+          <option value="4h">4小時</option>
+          <option value="1day" selected>日線</option>
+        </select>
+        <button id="indicatorSettingsBtn">設定 API Key</button>
+        <button class="primary" id="indicatorQueryBtn">查詢指標</button>
+      </div>
+    </div>
+    <div class="calendar-body" id="indicatorBody">
+      <p class="calendar-hint" id="indicatorStatus">輸入商品代碼並選擇週期後點「查詢指標」，可以看到 RSI、MACD 的白話判讀，幫助判斷「技術結構」這一項該打幾分。查詢紀錄會保留在下方，不會被新查詢覆蓋。</p>
+      <div id="indicatorHistoryContainer"></div>
+    </div>
+  </div>
+
   <div class="toolbar">
     <input type="text" id="newMarketName" placeholder="輸入市場名稱，例如 XAUUSD">
     <button class="primary" id="addBtn">＋ 新增市場</button>
@@ -495,6 +516,13 @@
           即時報價旁邊有一個開關，<b>開啟</b>之後查詢報價成功會自動把該商品加進下方的評分市場列表，
           省去手動再打一次名稱的步驟；<b>關閉</b>則只查報價、不影響市場列表。這個開關的開/關狀態會被記住，
           下次開啟軟體不用重設。
+        </p>
+        <p class="guide-q">📈 策略指標分析（RSI／MACD）</p>
+        <p class="guide-where">
+          輸入商品代碼、選好週期（15分鐘／1小時／4小時／日線）後點「查詢指標」，會顯示 RSI 跟 MACD
+          的數值跟白話判讀（例如「超買」「超賣」「偏多動能」「偏空動能」），對應評分表裡的<b>「技術結構」</b>
+          這一項，可以當作參考依據之一，跟自己看圖表的判斷互相對照。跟即時報價共用同一組 Twelve Data
+          API Key，不用另外申請，查詢紀錄一樣會累積保留、不會被新查詢覆蓋。
         </p>
         <p class="guide-where" style="margin-top:8px;">
           這些都是輔助功能，就算不申請 API Key、完全不用這幾個按鈕，也不影響評分表本身的核心功能。
@@ -1000,6 +1028,106 @@ async function refreshAllQuotes(){
 }
 
 document.getElementById("refreshAllBtn").addEventListener("click", refreshAllQuotes);
+
+// ---------- 策略指標分析（RSI／MACD） ----------
+const indicatorStatus = document.getElementById("indicatorStatus");
+const indicatorHistoryContainer = document.getElementById("indicatorHistoryContainer");
+let indicatorHistory = [];
+
+document.getElementById("indicatorSettingsBtn").addEventListener("click", () => openSettingsModal("twelvedata"));
+
+function setIndicatorStatus(text, cls){
+  indicatorStatus.textContent = text;
+  indicatorStatus.className = cls || "calendar-hint";
+}
+
+function interpretRsi(rsi){
+  const v = Number(rsi);
+  if(Number.isNaN(v)) return {label: "-", cls: ""};
+  if(v >= 70) return {label: "超買（可能回落）", cls: "impact-high"};
+  if(v <= 30) return {label: "超賣（可能反彈）", cls: "impact-high"};
+  return {label: "中性", cls: "impact-low"};
+}
+
+function interpretMacd(macd, signal){
+  const m = Number(macd), s = Number(signal);
+  if(Number.isNaN(m) || Number.isNaN(s)) return {label: "-", cls: ""};
+  if(m > s) return {label: "偏多動能（快線在慢線上方）", cls: "impact-high"};
+  if(m < s) return {label: "偏空動能（快線在慢線下方）", cls: ""};
+  return {label: "動能持平", cls: "impact-low"};
+}
+
+function renderIndicatorHistory(){
+  if(indicatorHistory.length === 0){
+    indicatorHistoryContainer.innerHTML = "";
+    return;
+  }
+  const rows = indicatorHistory.map(item => {
+    const ind = item.indicators;
+    const rsiInfo = interpretRsi(ind.rsi);
+    const macdInfo = interpretMacd(ind.macd, ind.macd_signal);
+    return `
+      <tr>
+        <td>${escapeHtml(item.time)}</td>
+        <td>${escapeHtml(ind.symbol_used || "-")}</td>
+        <td>${escapeHtml(ind.interval || "-")}</td>
+        <td>${fmtNum(ind.rsi)}</td>
+        <td class="${rsiInfo.cls}">${rsiInfo.label}</td>
+        <td>${fmtNum(ind.macd)} / ${fmtNum(ind.macd_signal)}</td>
+        <td class="${macdInfo.cls}">${macdInfo.label}</td>
+      </tr>
+    `;
+  }).join("");
+  indicatorHistoryContainer.innerHTML = `
+    <table class="calendar-table">
+      <thead>
+        <tr><th>查詢時間</th><th>代碼</th><th>週期</th><th>RSI</th><th>RSI判讀</th><th>MACD/訊號線</th><th>MACD判讀</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+async function queryIndicators(){
+  if(!hasNativeBridge()){
+    setIndicatorStatus("此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API）。", "calendar-hint");
+    return;
+  }
+  const apiKey = await getSavedKey(TWELVEDATA_KEY_STORAGE);
+  if(!apiKey){
+    setIndicatorStatus("尚未設定 API Key，請先點「前往申請 API Key」註冊，再點「設定 API Key」貼上。", "calendar-error");
+    return;
+  }
+  const symbol = document.getElementById("indicatorSymbolInput").value.trim();
+  if(!symbol){
+    setIndicatorStatus("請先輸入商品代碼，例如 EURUSD、XAUUSD。", "calendar-error");
+    return;
+  }
+  const interval = document.getElementById("indicatorInterval").value;
+  setIndicatorStatus("查詢中...", "calendar-loading");
+  try{
+    const result = await window.pywebview.api.fetch_technical_indicators(apiKey, symbol, interval);
+    if(result && result.error){
+      setIndicatorStatus(result.error, "calendar-error");
+      return;
+    }
+    const now = new Date();
+    indicatorHistory.unshift({time: formatTimestamp(now), indicators: result.indicators});
+    renderIndicatorHistory();
+    setIndicatorStatus(`查詢成功（${formatTimestamp(now)}）`, "calendar-hint");
+  }catch(e){
+    setIndicatorStatus(`呼叫失敗：${String(e)}`, "calendar-error");
+  }
+}
+
+document.getElementById("indicatorQueryBtn").addEventListener("click", queryIndicators);
+document.getElementById("indicatorSymbolInput").addEventListener("keydown", e => {
+  if(e.key === "Enter") queryIndicators();
+});
+
+if(!hasNativeBridge()){
+  setIndicatorStatus("此功能僅離線桌面版支援（網頁版因瀏覽器安全限制無法直接呼叫財經資料 API），其餘評分功能不受影響。", "calendar-hint");
+}
 
 // 記住「查詢後自動加入市場」開關的開/關狀態
 const AUTO_ADD_STORAGE = "xm_scorecard_auto_add_toggle";
