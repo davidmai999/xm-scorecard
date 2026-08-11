@@ -221,6 +221,34 @@
     border-radius:6px;
     font-size:12px;
   }
+  .multi-select{position:relative;}
+  .multi-select-panel{
+    display:none;
+    position:absolute;
+    top:calc(100% + 4px);
+    left:0;
+    z-index:20;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px;
+    min-width:220px;
+    max-height:260px;
+    overflow-y:auto;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .multi-select-panel.active{display:block;}
+  .multi-select-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 4px;
+    font-size:12px;
+    cursor:pointer;
+    border-radius:4px;
+  }
+  .multi-select-item:hover{background:var(--panel);}
+  .multi-select-item input{cursor:pointer;}
   .calendar-hint{font-size:12px;color:var(--text-dim);margin:0;}
   .calendar-error{font-size:12px;color:var(--red);margin:0;}
   .calendar-loading{font-size:12px;color:var(--text-dim);margin:0;}
@@ -356,21 +384,25 @@
 
   <div class="calendar-panel" id="indicatorPanel">
     <div class="calendar-head">
-      <span class="calendar-title">策略指標分析（RSI／MACD，參考用）</span>
+      <span class="calendar-title">策略指標分析（參考用）</span>
       <div class="calendar-controls">
-        <input type="text" id="indicatorSymbolInput" placeholder="例如 EURUSD、XAUUSD、AAPL" style="width:160px;">
+        <input type="text" id="indicatorSymbolInput" placeholder="商品代碼，例如 EURUSD、XAUUSD" style="width:170px;">
         <select id="indicatorInterval">
           <option value="15min">15分鐘</option>
           <option value="1h">1小時</option>
           <option value="4h">4小時</option>
           <option value="1day" selected>日線</option>
         </select>
+        <div class="multi-select" id="indicatorMultiSelect">
+          <button type="button" id="indicatorMultiSelectBtn">選擇指標（2）</button>
+          <div class="multi-select-panel" id="indicatorMultiSelectPanel"></div>
+        </div>
         <button id="indicatorSettingsBtn">設定 API Key</button>
         <button class="primary" id="indicatorQueryBtn">查詢指標</button>
       </div>
     </div>
     <div class="calendar-body" id="indicatorBody">
-      <p class="calendar-hint" id="indicatorStatus">輸入商品代碼並選擇週期後點「查詢指標」，可以看到 RSI、MACD 的白話判讀，幫助判斷「技術結構」這一項該打幾分。查詢紀錄會保留在下方，不會被新查詢覆蓋。</p>
+      <p class="calendar-hint" id="indicatorStatus">上方輸入框請填「商品代碼」（不是指標名稱），選好週期跟想查的指標後點「查詢指標」。勾選越多指標，一次查詢消耗的免費額度越多。查詢紀錄會保留在下方，不會被新查詢覆蓋。</p>
       <div id="indicatorHistoryContainer"></div>
     </div>
   </div>
@@ -599,7 +631,11 @@ function render(){
   const list = document.getElementById("marketList");
   const empty = document.getElementById("emptyState");
 
-  const sorted = [...markets].sort((a,b) => total(b) - total(a));
+  // 注意：畫面顯示故意「不」依分數排序，維持新增順序，
+  // 避免點分數按鈕時列表跳動、難以操作。
+  // 「今日優先觀察順序」仍會反映在每張卡片的狀態標籤／進度條顏色上，
+  // 真正的優先順序排序保留在「匯出 CSV」裡（exportCsv 函式有自己的排序）。
+  const sorted = markets;
 
   if(sorted.length === 0){
     list.innerHTML = "";
@@ -1029,10 +1065,25 @@ async function refreshAllQuotes(){
 
 document.getElementById("refreshAllBtn").addEventListener("click", refreshAllQuotes);
 
-// ---------- 策略指標分析（RSI／MACD） ----------
+// ---------- 策略指標分析（可複選指標） ----------
 const indicatorStatus = document.getElementById("indicatorStatus");
 const indicatorHistoryContainer = document.getElementById("indicatorHistoryContainer");
 let indicatorHistory = [];
+
+// 指標清單：value 對應 Twelve Data API 端點名稱，label 是畫面顯示的中文名稱
+const INDICATOR_LIST = [
+  {value: "rsi", label: "RSI 相對強弱指標"},
+  {value: "macd", label: "MACD 指數平滑異同移動平均線"},
+  {value: "sma", label: "SMA 簡單移動平均線（20期）"},
+  {value: "ema", label: "EMA 指數移動平均線（20期）"},
+  {value: "bbands", label: "布林通道 Bollinger Bands（20期）"},
+  {value: "stoch", label: "隨機指標 Stochastic"},
+  {value: "adx", label: "ADX 平均趨向指標"},
+  {value: "atr", label: "ATR 平均真實區間（波動度）"},
+  {value: "cci", label: "CCI 順勢指標"},
+  {value: "willr", label: "Williams %R"},
+];
+let selectedIndicators = new Set(["rsi", "macd"]); // 預設勾選 RSI、MACD
 
 document.getElementById("indicatorSettingsBtn").addEventListener("click", () => openSettingsModal("twelvedata"));
 
@@ -1041,20 +1092,128 @@ function setIndicatorStatus(text, cls){
   indicatorStatus.className = cls || "calendar-hint";
 }
 
-function interpretRsi(rsi){
-  const v = Number(rsi);
-  if(Number.isNaN(v)) return {label: "-", cls: ""};
-  if(v >= 70) return {label: "超買（可能回落）", cls: "impact-high"};
-  if(v <= 30) return {label: "超賣（可能反彈）", cls: "impact-high"};
-  return {label: "中性", cls: "impact-low"};
+// ---- 複選指標下拉選單 ----
+const indicatorMultiSelectBtn = document.getElementById("indicatorMultiSelectBtn");
+const indicatorMultiSelectPanel = document.getElementById("indicatorMultiSelectPanel");
+
+function updateIndicatorMultiSelectLabel(){
+  indicatorMultiSelectBtn.textContent = `選擇指標（${selectedIndicators.size}）`;
 }
 
-function interpretMacd(macd, signal){
-  const m = Number(macd), s = Number(signal);
-  if(Number.isNaN(m) || Number.isNaN(s)) return {label: "-", cls: ""};
-  if(m > s) return {label: "偏多動能（快線在慢線上方）", cls: "impact-high"};
-  if(m < s) return {label: "偏空動能（快線在慢線下方）", cls: ""};
-  return {label: "動能持平", cls: "impact-low"};
+function renderIndicatorMultiSelectPanel(){
+  indicatorMultiSelectPanel.innerHTML = INDICATOR_LIST.map(ind => `
+    <label class="multi-select-item">
+      <input type="checkbox" data-indicator="${ind.value}" ${selectedIndicators.has(ind.value) ? "checked" : ""}>
+      <span>${ind.label}</span>
+    </label>
+  `).join("");
+  indicatorMultiSelectPanel.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const val = cb.dataset.indicator;
+      if(cb.checked) selectedIndicators.add(val);
+      else selectedIndicators.delete(val);
+      updateIndicatorMultiSelectLabel();
+    });
+  });
+}
+renderIndicatorMultiSelectPanel();
+updateIndicatorMultiSelectLabel();
+
+indicatorMultiSelectBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  indicatorMultiSelectPanel.classList.toggle("active");
+});
+document.addEventListener("click", (e) => {
+  if(!document.getElementById("indicatorMultiSelect").contains(e.target)){
+    indicatorMultiSelectPanel.classList.remove("active");
+  }
+});
+
+// ---- 各指標的白話判讀（有明確門檻的才判讀，其餘只顯示數值） ----
+function interpretRsi(v){
+  const n = Number(v);
+  if(Number.isNaN(n)) return {label: "-", cls: ""};
+  if(n >= 70) return {label: "超買（可能回落）", cls: "impact-high"};
+  if(n <= 30) return {label: "超賣（可能反彈）", cls: "impact-high"};
+  return {label: "中性", cls: "impact-low"};
+}
+function interpretStoch(k){
+  const n = Number(k);
+  if(Number.isNaN(n)) return {label: "-", cls: ""};
+  if(n >= 80) return {label: "超買區", cls: "impact-high"};
+  if(n <= 20) return {label: "超賣區", cls: "impact-high"};
+  return {label: "中性", cls: "impact-low"};
+}
+function interpretCci(v){
+  const n = Number(v);
+  if(Number.isNaN(n)) return {label: "-", cls: ""};
+  if(n >= 100) return {label: "偏強（可能超買）", cls: "impact-high"};
+  if(n <= -100) return {label: "偏弱（可能超賣）", cls: "impact-high"};
+  return {label: "中性", cls: "impact-low"};
+}
+function interpretWillr(v){
+  const n = Number(v);
+  if(Number.isNaN(n)) return {label: "-", cls: ""};
+  if(n >= -20) return {label: "超買區", cls: "impact-high"};
+  if(n <= -80) return {label: "超賣區", cls: "impact-high"};
+  return {label: "中性", cls: "impact-low"};
+}
+function interpretAdx(v){
+  const n = Number(v);
+  if(Number.isNaN(n)) return {label: "-", cls: ""};
+  if(n >= 25) return {label: "趨勢明確（強）", cls: "impact-high"};
+  return {label: "趨勢不明顯", cls: "impact-low"};
+}
+
+// 把單一指標的原始數值物件轉成「顯示文字」跟「判讀文字」
+function formatIndicatorValue(key, val){
+  switch(key){
+    case "rsi": {
+      const info = interpretRsi(val.rsi);
+      return {value: fmtNum(val.rsi), judge: info.label, cls: info.cls};
+    }
+    case "macd": {
+      const m = Number(val.macd), s = Number(val.macd_signal);
+      let judge = "-", cls = "";
+      if(!Number.isNaN(m) && !Number.isNaN(s)){
+        if(m > s){ judge = "偏多動能（快線在慢線上方）"; cls = "impact-high"; }
+        else if(m < s){ judge = "偏空動能（快線在慢線下方）"; cls = ""; }
+        else { judge = "動能持平"; cls = "impact-low"; }
+      }
+      return {value: `${fmtNum(val.macd)} / ${fmtNum(val.macd_signal)}`, judge, cls};
+    }
+    case "sma":
+      return {value: fmtNum(val.sma), judge: "與現價比較可看趨勢方向", cls: ""};
+    case "ema":
+      return {value: fmtNum(val.ema), judge: "與現價比較可看趨勢方向", cls: ""};
+    case "bbands":
+      return {value: `上緣 ${fmtNum(val.upper_band)} ／中線 ${fmtNum(val.middle_band)} ／下緣 ${fmtNum(val.lower_band)}`, judge: "現價貼近上/下緣可能超買/超賣", cls: ""};
+    case "stoch": {
+      const info = interpretStoch(val.slow_k);
+      return {value: `%K ${fmtNum(val.slow_k)} / %D ${fmtNum(val.slow_d)}`, judge: info.label, cls: info.cls};
+    }
+    case "adx": {
+      const info = interpretAdx(val.adx);
+      return {value: fmtNum(val.adx), judge: info.label, cls: info.cls};
+    }
+    case "atr":
+      return {value: fmtNum(val.atr), judge: "數值越大代表波動度越高", cls: ""};
+    case "cci": {
+      const info = interpretCci(val.cci);
+      return {value: fmtNum(val.cci), judge: info.label, cls: info.cls};
+    }
+    case "willr": {
+      const info = interpretWillr(val.willr);
+      return {value: fmtNum(val.willr), judge: info.label, cls: info.cls};
+    }
+    default:
+      return {value: "-", judge: "-", cls: ""};
+  }
+}
+
+function indicatorLabel(key){
+  const found = INDICATOR_LIST.find(i => i.value === key);
+  return found ? found.label : key;
 }
 
 function renderIndicatorHistory(){
@@ -1062,30 +1221,37 @@ function renderIndicatorHistory(){
     indicatorHistoryContainer.innerHTML = "";
     return;
   }
-  const rows = indicatorHistory.map(item => {
+  const blocks = indicatorHistory.map(item => {
     const ind = item.indicators;
-    const rsiInfo = interpretRsi(ind.rsi);
-    const macdInfo = interpretMacd(ind.macd, ind.macd_signal);
+    const keys = Object.keys(ind.values || {});
+    const rows = keys.map(key => {
+      const f = formatIndicatorValue(key, ind.values[key]);
+      return `
+        <tr>
+          <td>${escapeHtml(indicatorLabel(key))}</td>
+          <td>${escapeHtml(f.value)}</td>
+          <td class="${f.cls}">${escapeHtml(f.judge)}</td>
+        </tr>
+      `;
+    }).join("");
+    const errorKeys = Object.keys(ind.errors || {});
+    const errorNote = errorKeys.length
+      ? `<p class="calendar-error" style="margin-top:6px;">${errorKeys.map(k => `${indicatorLabel(k)}：${ind.errors[k]}`).join("；")}</p>`
+      : "";
     return `
-      <tr>
-        <td>${escapeHtml(item.time)}</td>
-        <td>${escapeHtml(ind.symbol_used || "-")}</td>
-        <td>${escapeHtml(ind.interval || "-")}</td>
-        <td>${fmtNum(ind.rsi)}</td>
-        <td class="${rsiInfo.cls}">${rsiInfo.label}</td>
-        <td>${fmtNum(ind.macd)} / ${fmtNum(ind.macd_signal)}</td>
-        <td class="${macdInfo.cls}">${macdInfo.label}</td>
-      </tr>
+      <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+        <p class="calendar-hint" style="margin-bottom:6px;">
+          <b>${escapeHtml(ind.symbol_used || "-")}</b>　週期：${escapeHtml(ind.interval || "-")}　查詢時間：${escapeHtml(item.time)}
+        </p>
+        <table class="calendar-table">
+          <thead><tr><th>指標</th><th>數值</th><th>判讀</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${errorNote}
+      </div>
     `;
   }).join("");
-  indicatorHistoryContainer.innerHTML = `
-    <table class="calendar-table">
-      <thead>
-        <tr><th>查詢時間</th><th>代碼</th><th>週期</th><th>RSI</th><th>RSI判讀</th><th>MACD/訊號線</th><th>MACD判讀</th></tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
+  indicatorHistoryContainer.innerHTML = blocks;
 }
 
 async function queryIndicators(){
@@ -1100,13 +1266,19 @@ async function queryIndicators(){
   }
   const symbol = document.getElementById("indicatorSymbolInput").value.trim();
   if(!symbol){
-    setIndicatorStatus("請先輸入商品代碼，例如 EURUSD、XAUUSD。", "calendar-error");
+    setIndicatorStatus("請先輸入商品代碼（不是指標名稱），例如 EURUSD、XAUUSD。", "calendar-error");
+    return;
+  }
+  if(selectedIndicators.size === 0){
+    setIndicatorStatus("請至少勾選一個指標。", "calendar-error");
     return;
   }
   const interval = document.getElementById("indicatorInterval").value;
-  setIndicatorStatus("查詢中...", "calendar-loading");
+  setIndicatorStatus(`查詢中（共 ${selectedIndicators.size} 項指標）...`, "calendar-loading");
   try{
-    const result = await window.pywebview.api.fetch_technical_indicators(apiKey, symbol, interval);
+    const result = await window.pywebview.api.fetch_technical_indicators(
+      apiKey, symbol, interval, Array.from(selectedIndicators)
+    );
     if(result && result.error){
       setIndicatorStatus(result.error, "calendar-error");
       return;
@@ -1114,7 +1286,11 @@ async function queryIndicators(){
     const now = new Date();
     indicatorHistory.unshift({time: formatTimestamp(now), indicators: result.indicators});
     renderIndicatorHistory();
-    setIndicatorStatus(`查詢成功（${formatTimestamp(now)}）`, "calendar-hint");
+    const failCount = Object.keys(result.indicators.errors || {}).length;
+    setIndicatorStatus(
+      `查詢成功（${formatTimestamp(now)}）${failCount > 0 ? `，其中 ${failCount} 項指標查詢失敗` : ""}`,
+      failCount > 0 ? "calendar-error" : "calendar-hint"
+    );
   }catch(e){
     setIndicatorStatus(`呼叫失敗：${String(e)}`, "calendar-error");
   }
