@@ -143,15 +143,34 @@ class Api:
         data["symbol_used"] = normalized
         return {"quote": data}
 
-    def fetch_technical_indicators(self, api_key: str, symbol: str, interval: str = "1day"):
-        """呼叫 Twelve Data 技術指標 API，取得最新一筆 RSI 與 MACD。
+    # 目前支援的指標清單：key 對應 Twelve Data 的 API 端點名稱，
+    # extra_params 是該指標需要的額外參數（沒列出的用 API 預設值）
+    INDICATOR_DEFAULTS = {
+        "rsi": {"time_period": 14},
+        "macd": {},
+        "sma": {"time_period": 20},
+        "ema": {"time_period": 20},
+        "bbands": {"time_period": 20},
+        "stoch": {},
+        "adx": {"time_period": 14},
+        "atr": {"time_period": 14},
+        "cci": {"time_period": 14},
+        "willr": {"time_period": 14},
+    }
+
+    def fetch_technical_indicators(self, api_key: str, symbol: str, interval: str = "1day", indicators=None):
+        """呼叫 Twelve Data 技術指標 API，取得使用者勾選的指標的最新一筆數值。
+
+        indicators：指標代碼字串陣列，例如 ["rsi", "macd", "sma"]，
+        不傳的話預設查 RSI、MACD。
 
         回傳格式：
-          成功：{"indicators": {...}}
-          失敗：{"error": "錯誤訊息文字"}
+          成功：{"indicators": {"symbol_used", "interval", "values": {...}, "errors": {...}}}
+          全部失敗：{"error": "錯誤訊息文字"}
 
         提醒：指標數值僅供評分時參考（對應「技術結構」這一項），
         不是自動交易訊號，最終判斷仍需自行確認圖表。
+        每個勾選的指標都會各呼叫一次 API，勾選越多、消耗的免費額度越多。
         """
         if not requests:
             return {"error": "伺服器端缺少 requests 套件，無法呼叫網路 API。"}
@@ -162,23 +181,29 @@ class Api:
         if not symbol or not symbol.strip():
             return {"error": "請輸入商品代碼，例如 EURUSD、XAUUSD、AAPL。"}
 
+        if not indicators:
+            indicators = ["rsi", "macd"]
+        indicators = [i for i in indicators if i in self.INDICATOR_DEFAULTS]
+        if not indicators:
+            return {"error": "沒有選擇任何有效的指標。"}
+
         normalized = self._normalize_symbol(symbol)
         key = api_key.strip()
 
-        def _call(endpoint: str):
+        def _call(endpoint: str, extra_params: dict):
             try:
                 resp = requests.get(
                     f"https://api.twelvedata.com/{endpoint}",
-                    params={"symbol": normalized, "interval": interval, "apikey": key},
+                    params={"symbol": normalized, "interval": interval, "apikey": key, **extra_params},
                     timeout=12,
                 )
             except requests.exceptions.RequestException as e:
-                return None, f"連線失敗，請確認網路連線是否正常：{e}"
+                return None, f"連線失敗：{e}"
 
             if resp.status_code == 429:
                 return None, "已達 API 呼叫次數上限，請稍後再試（免費方案有每分鐘/每日呼叫次數限制）。"
             if resp.status_code != 200:
-                return None, f"API 回應異常（狀態碼 {resp.status_code}），請稍後再試。"
+                return None, f"API 回應異常（狀態碼 {resp.status_code}）。"
 
             try:
                 data = resp.json()
@@ -186,31 +211,37 @@ class Api:
                 return None, "API 回傳格式異常，無法解析。"
 
             if isinstance(data, dict) and data.get("status") == "error":
-                msg = data.get("message", "未知錯誤")
-                return None, (
-                    f"查詢「{normalized}」的 {endpoint.upper()} 失敗：{msg}\n"
-                    "請確認 API Key 是否正確，或代碼格式是否正確（外匯/貴金屬請用 XXX/YYY 格式）。"
-                )
+                return None, data.get("message", "未知錯誤")
 
             values = data.get("values") or []
             return (values[0] if values else None), None
 
-        rsi_latest, err = _call("rsi")
-        if err:
-            return {"error": err}
+        results = {}
+        errors = {}
+        for ind in indicators:
+            latest, err = _call(ind, self.INDICATOR_DEFAULTS[ind])
+            if err:
+                errors[ind] = err
+            elif latest:
+                # 去掉 datetime 欄位，只保留指標數值欄位
+                latest.pop("datetime", None)
+                results[ind] = latest
 
-        macd_latest, err = _call("macd")
-        if err:
-            return {"error": err}
+        if not results:
+            first_err = next(iter(errors.values()), "未知錯誤")
+            return {
+                "error": (
+                    f"查詢「{normalized}」失敗：{first_err}\n"
+                    "請確認 API Key 是否正確，或代碼格式是否正確（外匯/貴金屬請用 XXX/YYY 格式）。"
+                )
+            }
 
         return {
             "indicators": {
                 "symbol_used": normalized,
                 "interval": interval,
-                "rsi": rsi_latest.get("rsi") if rsi_latest else None,
-                "macd": macd_latest.get("macd") if macd_latest else None,
-                "macd_signal": macd_latest.get("macd_signal") if macd_latest else None,
-                "macd_hist": macd_latest.get("macd_hist") if macd_latest else None,
+                "values": results,
+                "errors": errors,
             }
         }
 
