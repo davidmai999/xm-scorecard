@@ -143,25 +143,74 @@ class Api:
         data["symbol_used"] = normalized
         return {"quote": data}
 
-    # 目前支援的指標清單：key 對應 Twelve Data 的 API 端點名稱，
-    # extra_params 是該指標需要的額外參數（沒列出的用 API 預設值）
+    # 少數常用指標，額外指定參數（沒列出的指標交給 API 自己的預設值處理）
     INDICATOR_DEFAULTS = {
         "rsi": {"time_period": 14},
-        "macd": {},
         "sma": {"time_period": 20},
         "ema": {"time_period": 20},
         "bbands": {"time_period": 20},
-        "stoch": {},
         "adx": {"time_period": 14},
         "atr": {"time_period": 14},
         "cci": {"time_period": 14},
         "willr": {"time_period": 14},
     }
 
+    def fetch_available_indicators(self, api_key: str):
+        """呼叫 Twelve Data 的 /technical_indicators 端點，取得該帳號可用的完整指標清單。
+
+        回傳格式：
+          成功：{"indicators": [{"key": "rsi", "name": "Relative Strength Index", "type": "momentum"}, ...]}
+          失敗：{"error": "錯誤訊息文字"}
+        """
+        if not requests:
+            return {"error": "伺服器端缺少 requests 套件，無法呼叫網路 API。"}
+
+        if not api_key or not api_key.strip():
+            return {"error": "尚未設定 Twelve Data API Key，請先到設定欄位輸入。"}
+
+        try:
+            resp = requests.get(
+                "https://api.twelvedata.com/technical_indicators",
+                params={"apikey": api_key.strip()},
+                timeout=15,
+            )
+        except requests.exceptions.RequestException as e:
+            return {"error": f"連線失敗，請確認網路連線是否正常：{e}"}
+
+        if resp.status_code == 429:
+            return {"error": "已達 API 呼叫次數上限，請稍後再試。"}
+        if resp.status_code != 200:
+            return {"error": f"API 回應異常（狀態碼 {resp.status_code}）。"}
+
+        try:
+            data = resp.json()
+        except ValueError:
+            return {"error": "API 回傳格式異常，無法解析。"}
+
+        if isinstance(data, dict) and data.get("status") == "error":
+            return {"error": data.get("message", "未知錯誤")}
+
+        raw = data.get("data") or {}
+        indicators = []
+        for key, info in raw.items():
+            if not isinstance(info, dict):
+                continue
+            indicators.append({
+                "key": key,
+                "name": info.get("full_name") or key.upper(),
+                "type": info.get("type") or "",
+            })
+        indicators.sort(key=lambda x: (x["type"], x["name"]))
+
+        if not indicators:
+            return {"error": "查無可用指標清單，請稍後再試。"}
+
+        return {"indicators": indicators}
+
     def fetch_technical_indicators(self, api_key: str, symbol: str, interval: str = "1day", indicators=None):
         """呼叫 Twelve Data 技術指標 API，取得使用者勾選的指標的最新一筆數值。
 
-        indicators：指標代碼字串陣列，例如 ["rsi", "macd", "sma"]，
+        indicators：指標代碼字串陣列，例如 ["rsi", "macd", "sma"]（來自 Twelve Data 官方指標清單），
         不傳的話預設查 RSI、MACD。
 
         回傳格式：
@@ -183,7 +232,9 @@ class Api:
 
         if not indicators:
             indicators = ["rsi", "macd"]
-        indicators = [i for i in indicators if i in self.INDICATOR_DEFAULTS]
+        # 指標代碼只允許小寫英數字/底線（避免被誤用來拼湊奇怪的網址），
+        # 但不再限制只能用預先列好的白名單，讓使用者可以選 Twelve Data 提供的任何指標
+        indicators = [i for i in indicators if isinstance(i, str) and i.replace("_", "").isalnum()]
         if not indicators:
             return {"error": "沒有選擇任何有效的指標。"}
 
@@ -219,7 +270,7 @@ class Api:
         results = {}
         errors = {}
         for ind in indicators:
-            latest, err = _call(ind, self.INDICATOR_DEFAULTS[ind])
+            latest, err = _call(ind, self.INDICATOR_DEFAULTS.get(ind, {}))
             if err:
                 errors[ind] = err
             elif latest:
