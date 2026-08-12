@@ -221,6 +221,7 @@
     border-radius:6px;
     font-size:12px;
   }
+  .symbol-picker{max-width:150px;}
   .multi-select{position:relative;}
   .multi-select-panel{
     display:none;
@@ -232,12 +233,35 @@
     border:1px solid var(--border);
     border-radius:8px;
     padding:8px;
-    min-width:220px;
-    max-height:260px;
+    width:340px;
+    max-height:380px;
     overflow-y:auto;
     box-shadow:0 8px 24px rgba(0,0,0,0.4);
   }
   .multi-select-panel.active{display:block;}
+  .multi-select-search{
+    width:100%;
+    margin-bottom:6px;
+    padding:6px 8px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    font-size:12px;
+  }
+  .multi-select-loadall{
+    width:100%;
+    margin-bottom:6px;
+    font-size:11px;
+    padding:6px 8px;
+  }
+  .multi-select-group-label{
+    font-size:11px;
+    color:var(--text-dim);
+    font-weight:600;
+    padding:6px 4px 2px;
+    text-transform:uppercase;
+  }
   .multi-select-item{
     display:flex;
     align-items:center;
@@ -365,6 +389,7 @@
       <span class="calendar-title">即時報價查詢（參考用）</span>
       <div class="calendar-controls">
         <input type="text" id="quoteSymbolInput" placeholder="例如 EURUSD、XAUUSD、AAPL" style="width:160px;">
+        <select id="quoteSymbolPicker" class="symbol-picker"></select>
         <button id="quoteApplyBtn">🔗 前往申請 API Key</button>
         <button id="quoteSettingsBtn">設定 API Key</button>
         <button class="primary" id="quoteQueryBtn">查詢報價</button>
@@ -387,6 +412,7 @@
       <span class="calendar-title">策略指標分析（參考用）</span>
       <div class="calendar-controls">
         <input type="text" id="indicatorSymbolInput" placeholder="商品代碼，例如 EURUSD、XAUUSD" style="width:170px;">
+        <select id="indicatorSymbolPicker" class="symbol-picker"></select>
         <select id="indicatorInterval">
           <option value="15min">15分鐘</option>
           <option value="1h">1小時</option>
@@ -409,10 +435,12 @@
 
   <div class="toolbar">
     <input type="text" id="newMarketName" placeholder="輸入市場名稱，例如 XAUUSD">
+    <select id="newMarketPicker" class="symbol-picker"></select>
     <button class="primary" id="addBtn">＋ 新增市場</button>
     <button id="exportBtn">匯出 CSV</button>
     <button id="clearBtn">清空全部</button>
     <button id="guideBtn">📖 填寫指南</button>
+    <button id="manualBtn">📘 軟體使用說明</button>
   </div>
 
   <div class="market-list" id="marketList"></div>
@@ -571,6 +599,99 @@
   </div>
 </div>
 
+<div class="guide-overlay" id="manualOverlay">
+  <div class="guide-modal">
+    <div class="guide-header">
+      <h2>軟體使用說明｜從零開始上手</h2>
+      <button id="manualCloseBtn" class="guide-close">✕</button>
+    </div>
+    <div class="guide-body">
+      <p>這份說明是寫給<b>完全沒用過這套軟體的人</b>看的，照著順序看下去，不需要任何背景知識也能學會操作。</p>
+
+      <div class="guide-section">
+        <h3>這是什麼軟體？</h3>
+        <p class="guide-where">
+          這是一套幫助判斷「今天要優先觀察哪些市場」的評分工具。每個市場（例如黃金、歐元美元）依照五個項目各打 0-5 分，
+          系統會自動算出總分，總分越高代表越值得優先關注。<b>它不是自動交易軟體，不會幫你下單，也不保證獲利</b>，
+          純粹是幫助整理思路、方便記錄跟討論的小工具。
+        </p>
+      </div>
+
+      <div class="guide-section">
+        <h3>第一次打開軟體，跳出「Windows 已保護您的電腦」怎麼辦？</h3>
+        <p class="guide-where">
+          這是正常現象，不是病毒警告。因為這個軟體是新做的、沒有花錢申請微軟的「數位簽章」，
+          Windows 系統看到「來路不明的新程式」就會提醒一下，跟安全性沒有直接關係。處理方式：
+        </p>
+        <table class="guide-table">
+          <tr><td>1</td><td>看到藍色視窗寫「Windows 已保護您的電腦」，點左下角的「其他資訊」（藍色底線文字）</td></tr>
+          <tr><td>2</td><td>點開後畫面會多一個按鈕，叫「仍要執行」</td></tr>
+          <tr><td>3</td><td>點「仍要執行」，軟體就會正常打開</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>畫面總覽：每個區塊在幹嘛</h3>
+        <p class="guide-where">打開軟體後，畫面由上到下大致分成這幾塊：</p>
+        <table class="guide-table">
+          <tr><td>①</td><td>五個評分項目說明卡片——提醒每一項對應要用哪個工具參考</td></tr>
+          <tr><td>②</td><td>財經日曆——一顆按鈕，點下去用瀏覽器開啟外部財經日曆網站</td></tr>
+          <tr><td>③</td><td>即時報價查詢——輸入商品代碼查目前價格，可以累積查詢紀錄</td></tr>
+          <tr><td>④</td><td>策略指標分析——查 RSI、MACD 等技術指標的數值跟白話判讀</td></tr>
+          <tr><td>⑤</td><td>新增市場工具列——輸入市場名稱、新增到下方評分列表</td></tr>
+          <tr><td>⑥</td><td>市場評分列表——每個市場一張卡片，五個項目各打分數</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>新手第一次使用，照這個順序做</h3>
+        <table class="guide-table">
+          <tr><td>1</td><td>畫面最下方的輸入框，輸入你想評分的市場名稱（例如 <code>XAUUSD</code> 代表黃金），點「＋ 新增市場」</td></tr>
+          <tr><td>2</td><td>畫面上會多出一張這個市場的卡片，五個項目（市場焦點、消息品質、市場觀點、技術結構、事件風險）分別點選 0-5 分</td></tr>
+          <tr><td>3</td><td>每個分數按鈕滑鼠停留一下，會顯示這個分數大概代表什麼情況，當作打分參考</td></tr>
+          <tr><td>4</td><td>五項都打完後，卡片右下角會顯示「總分」，畫面上方的「填寫指南」按鈕裡有總分的解讀說明（優先觀察／次要觀察／暫時放掉）</td></tr>
+          <tr><td>5</td><td>如果想留下這次評分的紀錄，點「快速筆記」輸入框寫下判斷理由</td></tr>
+          <tr><td>6</td><td>想匯出成 Excel 可以打開的檔案，點「匯出 CSV」</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>各按鈕功能一覽</h3>
+        <table class="guide-table">
+          <tr><td>＋ 新增市場</td><td>把輸入框裡打的市場名稱加進下方評分列表</td></tr>
+          <tr><td>匯出 CSV</td><td>把目前所有市場的評分結果存成一個檔案，可以用 Excel 打開，會自動依總分排序</td></tr>
+          <tr><td>清空全部</td><td>刪掉目前列表裡所有的市場資料，會先跳出確認視窗，不用擔心手滑</td></tr>
+          <tr><td>📖 填寫指南</td><td>說明五個評分項目分別該怎麼打分數，以及財經日曆／即時報價／策略指標這幾個輔助工具怎麼用</td></tr>
+          <tr><td>📘 軟體使用說明</td><td>就是你現在正在看的這份說明</td></tr>
+          <tr><td>🌐 開啟財經日曆網站</td><td>用瀏覽器打開 TradingView 財經日曆頁面，查看近期經濟事件</td></tr>
+          <tr><td>🔗 前往申請 API Key</td><td>用瀏覽器打開 Twelve Data 免費註冊頁面（即時報價、策略指標功能需要用到）</td></tr>
+          <tr><td>設定 API Key</td><td>把申請好的 Twelve Data API Key 貼上去儲存，貼一次即可，即時報價跟策略指標共用同一組</td></tr>
+          <tr><td>查詢報價 / 全部重新查詢</td><td>查單一商品的即時報價／把已加入列表的商品全部重新查一次</td></tr>
+          <tr><td>選擇指標 / 查詢指標</td><td>勾選要查的技術指標，再按查詢指標，取得數值跟判讀</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>即時報價、策略指標一定要用嗎？</h3>
+        <p class="guide-where">
+          不用。這兩個功能需要另外申請一組免費的 Twelve Data API Key 才能用，如果完全不申請、不設定，
+          評分表本身的核心功能（新增市場、打分數、匯出 CSV）完全不受影響，一樣可以正常使用。
+          這兩個是額外的輔助小工具，方便查價格、抓技術指標數字時省去自己開瀏覽器找的時間而已。
+        </p>
+      </div>
+
+      <div class="guide-section">
+        <h3>常見問題</h3>
+        <p><b>Q：資料存在哪裡？重開電腦會不會不見？</b><br>資料存在這台電腦目前使用的軟體裡，重新整理不會不見，但如果換電腦或重灌系統，資料不會跟著過去。</p>
+        <p><b>Q：可以同時開很多市場評分嗎？</b><br>可以，市場數量沒有限制，新增幾個都可以同時放在列表裡。</p>
+        <p><b>Q：分數打錯了可以改嗎？</b><br>可以，直接點其他分數按鈕就會換成新的分數，不用先刪除重新輸入。</p>
+        <p><b>Q：想刪掉某一個市場，不是全部清空，怎麼辦？</b><br>每張市場卡片右下角有一個「刪除」按鈕，只會刪掉那一個市場。</p>
+        <p><b>Q：即時報價／策略指標查詢一直失敗怎麼辦？</b><br>先確認有沒有設定 API Key、Key 有沒有貼對；如果都確認過還是不行，把錯誤訊息截圖起來，方便進一步排查問題。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const CRITERIA = [
   {key:"market_buzz", name:"市場焦點", tool:"TC Market Buzz", hints:["完全沒熱度","幾乎沒熱度","略有關注","有一定關注","頗受矚目","明顯熱門"]},
@@ -579,6 +700,53 @@ const CRITERIA = [
   {key:"technical", name:"技術結構", tool:"Technical Insight", hints:["結構完全混亂","結構混亂","訊號零散","有訊號不完整","結構漸清楚","結構清楚"]},
   {key:"event_risk", name:"事件風險", tool:"Economic Insight", hints:["重大事件迫近，風險極高","重大事件太近，風險高","有事件，需留意","有事件但可控","風險偏低","暫無高風險事件"]},
 ];
+
+// 常見外匯／貴金屬品種快選清單（分組），選了會自動帶入對應文字輸入框，
+// 文字框本身仍可自行手動輸入查詢，兩種方式並存。
+const FOREX_PRODUCTS = [
+  {group: "主要貨幣對", items: [
+    {value: "EURUSD", label: "EURUSD 歐元／美元"},
+    {value: "GBPUSD", label: "GBPUSD 英鎊／美元"},
+    {value: "USDJPY", label: "USDJPY 美元／日圓"},
+    {value: "USDCHF", label: "USDCHF 美元／瑞士法郎"},
+    {value: "USDCAD", label: "USDCAD 美元／加幣"},
+    {value: "AUDUSD", label: "AUDUSD 澳幣／美元"},
+    {value: "NZDUSD", label: "NZDUSD 紐幣／美元"},
+  ]},
+  {group: "交叉貨幣對", items: [
+    {value: "EURGBP", label: "EURGBP 歐元／英鎊"},
+    {value: "EURJPY", label: "EURJPY 歐元／日圓"},
+    {value: "GBPJPY", label: "GBPJPY 英鎊／日圓"},
+    {value: "AUDJPY", label: "AUDJPY 澳幣／日圓"},
+    {value: "EURAUD", label: "EURAUD 歐元／澳幣"},
+    {value: "GBPCHF", label: "GBPCHF 英鎊／瑞士法郎"},
+    {value: "CHFJPY", label: "CHFJPY 瑞士法郎／日圓"},
+    {value: "EURCAD", label: "EURCAD 歐元／加幣"},
+  ]},
+  {group: "貴金屬", items: [
+    {value: "XAUUSD", label: "XAUUSD 黃金／美元"},
+    {value: "XAGUSD", label: "XAGUSD 白銀／美元"},
+  ]},
+];
+
+// 幫某個 <select> 填入品種清單，並綁定「選了就把值帶進目標文字框」的行為
+function setupSymbolPicker(selectId, targetInputId){
+  const select = document.getElementById(selectId);
+  if(!select) return;
+  const optionsHtml = FOREX_PRODUCTS.map(g => `
+    <optgroup label="${escapeHtml(g.group)}">
+      ${g.items.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}
+    </optgroup>
+  `).join("");
+  select.innerHTML = `<option value="">— 快選外匯品種 —</option>${optionsHtml}`;
+  select.addEventListener("change", () => {
+    if(!select.value) return;
+    const target = document.getElementById(targetInputId);
+    target.value = select.value;
+    target.focus();
+    select.value = ""; // 選完重置，方便下次還能再選同一個或不同的
+  });
+}
 
 let markets = [];
 const STORAGE_KEY = "xm_scorecard_markets";
@@ -792,6 +960,17 @@ document.getElementById("guideCloseBtn").addEventListener("click", () => {
 });
 guideOverlay.addEventListener("click", e => {
   if(e.target === guideOverlay) guideOverlay.classList.remove("active");
+});
+
+const manualOverlay = document.getElementById("manualOverlay");
+document.getElementById("manualBtn").addEventListener("click", () => {
+  manualOverlay.classList.add("active");
+});
+document.getElementById("manualCloseBtn").addEventListener("click", () => {
+  manualOverlay.classList.remove("active");
+});
+manualOverlay.addEventListener("click", e => {
+  if(e.target === manualOverlay) manualOverlay.classList.remove("active");
 });
 
 // ---------- API Key 設定（即時報價用 Twelve Data） ----------
@@ -1070,19 +1249,23 @@ const indicatorStatus = document.getElementById("indicatorStatus");
 const indicatorHistoryContainer = document.getElementById("indicatorHistoryContainer");
 let indicatorHistory = [];
 
-// 指標清單：value 對應 Twelve Data API 端點名稱，label 是畫面顯示的中文名稱
-const INDICATOR_LIST = [
-  {value: "rsi", label: "RSI 相對強弱指標"},
-  {value: "macd", label: "MACD 指數平滑異同移動平均線"},
-  {value: "sma", label: "SMA 簡單移動平均線（20期）"},
-  {value: "ema", label: "EMA 指數移動平均線（20期）"},
-  {value: "bbands", label: "布林通道 Bollinger Bands（20期）"},
-  {value: "stoch", label: "隨機指標 Stochastic"},
-  {value: "adx", label: "ADX 平均趨向指標"},
-  {value: "atr", label: "ATR 平均真實區間（波動度）"},
-  {value: "cci", label: "CCI 順勢指標"},
-  {value: "willr", label: "Williams %R"},
+// 預設的精選常用指標（value 對應 Twelve Data API 端點名稱，label 是畫面顯示的中文/英文名稱）
+// 點「載入完整指標清單」後，會改用 Twelve Data 官方 API 動態抓回它們實際支援的全部指標（100+ 種）
+const DEFAULT_INDICATOR_LIST = [
+  {value: "rsi", label: "RSI 相對強弱指標", type: "常用精選"},
+  {value: "macd", label: "MACD 指數平滑異同移動平均線", type: "常用精選"},
+  {value: "sma", label: "SMA 簡單移動平均線（20期）", type: "常用精選"},
+  {value: "ema", label: "EMA 指數移動平均線（20期）", type: "常用精選"},
+  {value: "bbands", label: "布林通道 Bollinger Bands（20期）", type: "常用精選"},
+  {value: "stoch", label: "隨機指標 Stochastic", type: "常用精選"},
+  {value: "adx", label: "ADX 平均趨向指標", type: "常用精選"},
+  {value: "atr", label: "ATR 平均真實區間（波動度）", type: "常用精選"},
+  {value: "cci", label: "CCI 順勢指標", type: "常用精選"},
+  {value: "willr", label: "Williams %R", type: "常用精選"},
 ];
+let INDICATOR_LIST = DEFAULT_INDICATOR_LIST.slice();
+let indicatorSearchKeyword = "";
+let hasLoadedFullIndicatorList = false;
 let selectedIndicators = new Set(["rsi", "macd"]); // 預設勾選 RSI、MACD
 
 document.getElementById("indicatorSettingsBtn").addEventListener("click", () => openSettingsModal("twelvedata"));
@@ -1092,7 +1275,7 @@ function setIndicatorStatus(text, cls){
   indicatorStatus.className = cls || "calendar-hint";
 }
 
-// ---- 複選指標下拉選單 ----
+// ---- 複選指標下拉選單（含搜尋、動態載入完整清單） ----
 const indicatorMultiSelectBtn = document.getElementById("indicatorMultiSelectBtn");
 const indicatorMultiSelectPanel = document.getElementById("indicatorMultiSelectPanel");
 
@@ -1101,12 +1284,57 @@ function updateIndicatorMultiSelectLabel(){
 }
 
 function renderIndicatorMultiSelectPanel(){
-  indicatorMultiSelectPanel.innerHTML = INDICATOR_LIST.map(ind => `
-    <label class="multi-select-item">
-      <input type="checkbox" data-indicator="${ind.value}" ${selectedIndicators.has(ind.value) ? "checked" : ""}>
-      <span>${ind.label}</span>
-    </label>
-  `).join("");
+  const keyword = indicatorSearchKeyword.trim().toLowerCase();
+  const filtered = keyword
+    ? INDICATOR_LIST.filter(ind => ind.label.toLowerCase().includes(keyword) || ind.value.toLowerCase().includes(keyword))
+    : INDICATOR_LIST;
+
+  // 依 type 分組顯示，方便在完整清單（100+ 項）裡瀏覽
+  const groups = {};
+  filtered.forEach(ind => {
+    const g = ind.type || "其他";
+    if(!groups[g]) groups[g] = [];
+    groups[g].push(ind);
+  });
+
+  const listHtml = Object.keys(groups).sort().map(g => {
+    const items = groups[g].map(ind => `
+      <label class="multi-select-item">
+        <input type="checkbox" data-indicator="${ind.value}" ${selectedIndicators.has(ind.value) ? "checked" : ""}>
+        <span>${escapeHtml(ind.label)}</span>
+      </label>
+    `).join("");
+    return `<div class="multi-select-group-label">${escapeHtml(g)}</div>${items}`;
+  }).join("") || `<p class="calendar-hint" style="padding:6px 4px;">找不到符合的指標</p>`;
+
+  const loadAllBtn = hasLoadedFullIndicatorList
+    ? `<p class="calendar-hint" style="padding:4px;">已載入完整指標清單（共 ${INDICATOR_LIST.length} 種）</p>`
+    : `<button type="button" class="multi-select-loadall" id="loadAllIndicatorsBtn">🔄 載入完整指標清單（100+ 種，需先設定 API Key）</button>`;
+
+  indicatorMultiSelectPanel.innerHTML = `
+    <input type="text" class="multi-select-search" id="indicatorSearchInput" placeholder="搜尋指標名稱..." value="${escapeHtml(indicatorSearchKeyword)}">
+    ${loadAllBtn}
+    ${listHtml}
+  `;
+
+  const searchInput = document.getElementById("indicatorSearchInput");
+  searchInput.addEventListener("input", (e) => {
+    indicatorSearchKeyword = e.target.value;
+    renderIndicatorMultiSelectPanel();
+    // 重新渲染後把焦點跟游標位置還原，不然打字會一直跳掉
+    const newInput = document.getElementById("indicatorSearchInput");
+    newInput.focus();
+    newInput.setSelectionRange(newInput.value.length, newInput.value.length);
+  });
+
+  const loadAllBtnEl = document.getElementById("loadAllIndicatorsBtn");
+  if(loadAllBtnEl){
+    loadAllBtnEl.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await loadFullIndicatorList();
+    });
+  }
+
   indicatorMultiSelectPanel.querySelectorAll("input[type=checkbox]").forEach(cb => {
     cb.addEventListener("change", () => {
       const val = cb.dataset.indicator;
@@ -1116,6 +1344,40 @@ function renderIndicatorMultiSelectPanel(){
     });
   });
 }
+
+async function loadFullIndicatorList(){
+  if(!hasNativeBridge()){
+    setIndicatorStatus("此功能僅離線桌面版支援。", "calendar-hint");
+    return;
+  }
+  const apiKey = await getSavedKey(TWELVEDATA_KEY_STORAGE);
+  if(!apiKey){
+    setIndicatorStatus("尚未設定 API Key，請先點「前往申請 API Key」註冊，再點「設定 API Key」貼上，才能載入完整指標清單。", "calendar-error");
+    return;
+  }
+  const btn = document.getElementById("loadAllIndicatorsBtn");
+  if(btn) btn.textContent = "載入中...";
+  try{
+    const result = await window.pywebview.api.fetch_available_indicators(apiKey);
+    if(result && result.error){
+      setIndicatorStatus(`載入指標清單失敗：${result.error}`, "calendar-error");
+      renderIndicatorMultiSelectPanel();
+      return;
+    }
+    INDICATOR_LIST = result.indicators.map(ind => ({
+      value: ind.key,
+      label: `${ind.name}（${ind.key}）`,
+      type: ind.type || "其他",
+    }));
+    hasLoadedFullIndicatorList = true;
+    setIndicatorStatus(`已載入完整指標清單，共 ${INDICATOR_LIST.length} 種可選。`, "calendar-hint");
+    renderIndicatorMultiSelectPanel();
+  }catch(e){
+    setIndicatorStatus(`載入失敗：${String(e)}`, "calendar-error");
+    renderIndicatorMultiSelectPanel();
+  }
+}
+
 renderIndicatorMultiSelectPanel();
 updateIndicatorMultiSelectLabel();
 
@@ -1206,8 +1468,14 @@ function formatIndicatorValue(key, val){
       const info = interpretWillr(val.willr);
       return {value: fmtNum(val.willr), judge: info.label, cls: info.cls};
     }
-    default:
-      return {value: "-", judge: "-", cls: ""};
+    default: {
+      // 沒有客製判讀邏輯的指標（例如從完整清單勾選的冷門指標），
+      // 通用把 API 回傳的所有欄位都列出來，至少看得到原始數值
+      const entries = Object.entries(val || {}).filter(([k]) => k !== "datetime");
+      if(entries.length === 0) return {value: "-", judge: "無判讀邏輯，僅顯示原始數值", cls: ""};
+      const value = entries.map(([k, v]) => `${k}: ${fmtNum(v)}`).join("，");
+      return {value, judge: "無判讀邏輯，僅顯示原始數值", cls: ""};
+    }
   }
 }
 
@@ -1319,6 +1587,9 @@ if(!hasNativeBridge()){
 
 renderFilterRef();
 loadMarkets().then(render);
+setupSymbolPicker("newMarketPicker", "newMarketName");
+setupSymbolPicker("quoteSymbolPicker", "quoteSymbolInput");
+setupSymbolPicker("indicatorSymbolPicker", "indicatorSymbolInput");
 </script>
 </body>
 </html>
