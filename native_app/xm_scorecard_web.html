@@ -368,7 +368,7 @@
 <body>
 <div class="wrap">
   <h1>市場選擇五濾網評分系統</h1>
-  <p class="subtitle">每個市場逐項評分 0-5 分，滿分 25 分，系統會自動排出「今日市場觀察優先順序」。20-25 分為優先觀察，12-19 分為次要觀察，0-11 分暫時放掉。</p>
+  <p class="subtitle">每個市場逐項評分 0-5 分：市場焦點、消息品質、市場觀點、技術結構為加分項（滿分 20 分），事件風險為扣分項（風險越高扣越多）。系統會自動排出「今日市場觀察優先順序」。16-20 分為優先觀察，10-15 分為次要觀察，9 分以下暫時放掉。</p>
 
   <div class="filters" id="filterRef"></div>
 
@@ -437,6 +437,7 @@
     <input type="text" id="newMarketName" placeholder="輸入市場名稱，例如 XAUUSD">
     <select id="newMarketPicker" class="symbol-picker"></select>
     <button class="primary" id="addBtn">＋ 新增市場</button>
+    <button id="sortBtn">📊 依總分排序</button>
     <button id="exportBtn">匯出 CSV</button>
     <button id="clearBtn">清空全部</button>
     <button id="guideBtn">📖 填寫指南</button>
@@ -532,25 +533,31 @@
       </div>
 
       <div class="guide-section">
-        <h3>⑤ 事件風險（對應 Economic Insight）</h3>
+        <h3>⑤ 事件風險（對應 Economic Insight，扣分項）</h3>
         <p class="guide-q">先問自己：接下來有沒有重大事件？會不會因為一則消息瞬間翻盤？</p>
         <p class="guide-where">去哪裡看：經濟日曆，篩選相關貨幣，看未來 24 小時是否有高影響力事件。</p>
+        <p class="guide-where"><b>注意：這一項跟其他四項方向相反。</b>分數代表「風險程度」，分數越高風險越大，而且會直接從總分裡扣掉，不是加分。</p>
         <table class="guide-table">
-          <tr><td>0</td><td>重大事件迫近，風險極高（例如 1 小時內就要公布央行決議）</td></tr>
-          <tr><td>1</td><td>重大事件太近，風險高（幾小時內有高影響力數據）</td></tr>
-          <tr><td>2</td><td>有事件，需留意（今天稍晚有中等重要性數據）</td></tr>
-          <tr><td>3</td><td>有事件但可控（事件還有一段時間，或影響力中等）</td></tr>
-          <tr><td>4</td><td>風險偏低，事件不多且影響力不大</td></tr>
-          <tr><td>5</td><td>暫無高風險事件，近期經濟日曆很乾淨</td></tr>
+          <tr><td>0</td><td>暫無高風險事件，近期經濟日曆很乾淨（不扣分）</td></tr>
+          <tr><td>1</td><td>風險偏低，事件不多且影響力不大</td></tr>
+          <tr><td>2</td><td>有事件但可控（事件還有一段時間，或影響力中等）</td></tr>
+          <tr><td>3</td><td>有事件，需留意（今天稍晚有中等重要性數據）</td></tr>
+          <tr><td>4</td><td>重大事件太近，風險高（幾小時內有高影響力數據）</td></tr>
+          <tr><td>5</td><td>重大事件迫近，風險極高（例如 1 小時內就要公布央行決議，扣 5 分）</td></tr>
         </table>
       </div>
 
       <div class="guide-section">
         <h3>總分怎麼解讀</h3>
+        <p class="guide-where">
+          總分 = （市場焦點 + 消息品質 + 市場觀點 + 技術結構）− 事件風險。
+          前四項滿分共 20 分，事件風險只會往下扣，所以總分上限是 20 分，
+          如果事件風險偏高，總分也可能扣到很低甚至變成負數，代表這個市場現在風險太大、先避開比較好。
+        </p>
         <table class="guide-table guide-table-total">
-          <tr><td>20–25 分</td><td>今日優先觀察市場</td></tr>
-          <tr><td>12–19 分</td><td>次要觀察市場</td></tr>
-          <tr><td>0–11 分</td><td>暫時放掉或等待</td></tr>
+          <tr><td>16–20 分</td><td>今日優先觀察市場</td></tr>
+          <tr><td>10–15 分</td><td>次要觀察市場</td></tr>
+          <tr><td>9 分以下</td><td>暫時放掉或等待</td></tr>
         </table>
       </div>
 
@@ -659,6 +666,7 @@
         <h3>各按鈕功能一覽</h3>
         <table class="guide-table">
           <tr><td>＋ 新增市場</td><td>把輸入框裡打的市場名稱加進下方評分列表</td></tr>
+          <tr><td>📊 依總分排序</td><td>把市場列表依目前總分由高到低排一次，平常改分數不會自動跳動，想看排名再按這顆</td></tr>
           <tr><td>匯出 CSV</td><td>把目前所有市場的評分結果存成一個檔案，可以用 Excel 打開，會自動依總分排序</td></tr>
           <tr><td>清空全部</td><td>刪掉目前列表裡所有的市場資料，會先跳出確認視窗，不用擔心手滑</td></tr>
           <tr><td>📖 填寫指南</td><td>說明五個評分項目分別該怎麼打分數，以及財經日曆／即時報價／策略指標這幾個輔助工具怎麼用</td></tr>
@@ -698,7 +706,7 @@ const CRITERIA = [
   {key:"newsdesk", name:"消息品質", tool:"TC Newsdesk", hints:["完全零散無題材","消息零散","略有題材不集中","有題材但不夠集中","題材漸明確","題材明確"]},
   {key:"crowd_insight", name:"市場觀點", tool:"Crowd Insight", hints:["情緒極度混亂或過熱","情緒混亂或過熱","觀點分歧需留意","有方向但需確認","觀點漸清楚","觀點清楚不擁擠"]},
   {key:"technical", name:"技術結構", tool:"Technical Insight", hints:["結構完全混亂","結構混亂","訊號零散","有訊號不完整","結構漸清楚","結構清楚"]},
-  {key:"event_risk", name:"事件風險", tool:"Economic Insight", hints:["重大事件迫近，風險極高","重大事件太近，風險高","有事件，需留意","有事件但可控","風險偏低","暫無高風險事件"]},
+  {key:"event_risk", name:"事件風險（扣分項）", tool:"Economic Insight", hints:["暫無高風險事件","風險偏低","有事件但可控","有事件，需留意","重大事件太近，風險高","重大事件迫近，風險極高"]},
 ];
 
 // 常見外匯／貴金屬品種快選清單（分組），選了會自動帶入對應文字輸入框，
@@ -751,11 +759,13 @@ function setupSymbolPicker(selectId, targetInputId){
 let markets = [];
 const STORAGE_KEY = "xm_scorecard_markets";
 
-const MAX_TOTAL = 25;
+// 事件風險改成扣分項後，滿分不再是 25，而是前四項加總的滿分 20
+// （事件風險只會往下扣，不會讓總分超過 20）。
+const MAX_TOTAL = 20;
 
 function classify(total){
-  if(total >= 20) return {text:"今日優先觀察市場", cls:"priority"};
-  if(total >= 12) return {text:"次要觀察市場", cls:"secondary"};
+  if(total >= 16) return {text:"今日優先觀察市場", cls:"priority"};
+  if(total >= 10) return {text:"次要觀察市場", cls:"secondary"};
   return {text:"暫時放掉或等待", cls:"drop"};
 }
 
@@ -887,7 +897,18 @@ function render(){
 }
 
 function total(m){
-  return CRITERIA.reduce((sum, c) => sum + (m.scores[c.key] || 0), 0);
+  // 事件風險是扣分項：0=無風險（不扣分）、5=風險極高（扣 5 分），
+  // 其餘四項是加分項，越高越好。總分 = 前四項加總 − 事件風險分數。
+  let sum = 0;
+  CRITERIA.forEach(c => {
+    const score = m.scores[c.key] || 0;
+    if(c.key === "event_risk"){
+      sum -= score;
+    }else{
+      sum += score;
+    }
+  });
+  return sum;
 }
 
 function escapeHtml(str){
@@ -944,10 +965,20 @@ function clearAll(){
   }
 }
 
+function sortByScore(){
+  if(markets.length === 0) return;
+  // 只在按下按鈕的當下排序一次，之後改分數不會又自動跳動，
+  // 想重新排就再按一次。
+  markets.sort((a, b) => total(b) - total(a));
+  render();
+  saveMarkets();
+}
+
 document.getElementById("addBtn").addEventListener("click", () => addMarket());
 document.getElementById("newMarketName").addEventListener("keydown", e => {
   if(e.key === "Enter") addMarket();
 });
+document.getElementById("sortBtn").addEventListener("click", sortByScore);
 document.getElementById("exportBtn").addEventListener("click", exportCsv);
 document.getElementById("clearBtn").addEventListener("click", clearAll);
 
