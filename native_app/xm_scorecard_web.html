@@ -276,6 +276,26 @@
   .calendar-hint{font-size:12px;color:var(--text-dim);margin:0;}
   .calendar-error{font-size:12px;color:var(--red);margin:0;}
   .calendar-loading{font-size:12px;color:var(--text-dim);margin:0;}
+  .tech-suggestion{
+    margin-top:8px;
+    padding:8px 10px;
+    background:var(--panel-alt);
+    border:1px solid var(--accent-dim);
+    border-radius:6px;
+    font-size:12px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  }
+  .tech-suggestion .apply-suggestion-btn{
+    font-size:11px;
+    padding:4px 10px;
+    background:var(--accent);
+    color:#1a1408;
+    border-color:var(--accent);
+    font-weight:600;
+  }
   .calendar-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;}
   .calendar-table th{
     text-align:left;color:var(--text-dim);font-weight:500;
@@ -591,6 +611,13 @@
           這一項，可以當作參考依據之一，跟自己看圖表的判斷互相對照。跟即時報價共用同一組 Twelve Data
           API Key，不用另外申請，查詢紀錄一樣會累積保留、不會被新查詢覆蓋。
         </p>
+        <p class="guide-where">
+          查完指標後，系統會依你勾選的指標方向是否一致，自動算出一個<b>「技術結構」建議分數</b>顯示在查詢結果下方
+          （例如勾選的指標全部同向 → 建議 5 分「結構清楚」；方向分歧 → 建議 2 分「訊號零散」）。
+          <b>這只是建議，不會自動改分數</b>，要按下「套用到⋯的技術結構」按鈕才會真的套用到評分表裡；
+          如果查詢的商品代碼還沒加進下方評分列表，會提示你先新增市場才能套用。
+          勾選的指標越多、判斷越準，只選 1 個指標時建議分數會比較保守。
+        </p>
         <p class="guide-where" style="margin-top:8px;">
           這些都是輔助功能，就算不申請 API Key、完全不用這幾個按鈕，也不影響評分表本身的核心功能。
         </p>
@@ -732,11 +759,11 @@ const FOREX_PRODUCTS = [
     {value: "EURCAD", label: "EURCAD 歐元／加幣"},
   ]},
   {group: "貴金屬", items: [
-    {value: "XAUUSD", label: "XAUUSD 黃金 GOLD／美元"},
-    {value: "XAGUSD", label: "XAGUSD 白銀 SILVER／美元"},
+    {value: "XAUUSD", label: "XAUUSD 黃金 GOLD／美元（與 XM 代碼相同）"},
+    {value: "XAGUSD", label: "XAGUSD 白銀 SILVER／美元（與 XM 代碼相同）"},
   ]},
   {group: "能源", items: [
-    {value: "WTIUSD", label: "WTIUSD 原油 OIL（WTI）／美元"},
+    {value: "WTIUSD", label: "USOIL 原油 WTI／美元（XM 代碼：USOIL）"},
   ]},
 ];
 
@@ -1518,6 +1545,97 @@ function indicatorLabel(key){
   return found ? found.label : key;
 }
 
+// ---- 技術結構分數建議（依查詢到的指標方向一致性自動估算） ----
+
+// 把單一指標的數值轉成方向：'up'（偏多）／'down'（偏空）／'neutral'（中性）／null（這個指標沒有方向性，不納入判斷）
+function getIndicatorDirection(key, val){
+  switch(key){
+    case "rsi": {
+      const n = Number(val.rsi);
+      if(Number.isNaN(n)) return null;
+      if(n >= 70) return "down";
+      if(n <= 30) return "up";
+      return "neutral";
+    }
+    case "macd": {
+      const m = Number(val.macd), s = Number(val.macd_signal);
+      if(Number.isNaN(m) || Number.isNaN(s)) return null;
+      if(m > s) return "up";
+      if(m < s) return "down";
+      return "neutral";
+    }
+    case "stoch": {
+      const n = Number(val.slow_k);
+      if(Number.isNaN(n)) return null;
+      if(n >= 80) return "down";
+      if(n <= 20) return "up";
+      return "neutral";
+    }
+    case "cci": {
+      const n = Number(val.cci);
+      if(Number.isNaN(n)) return null;
+      if(n >= 100) return "down";
+      if(n <= -100) return "up";
+      return "neutral";
+    }
+    case "willr": {
+      const n = Number(val.willr);
+      if(Number.isNaN(n)) return null;
+      if(n >= -20) return "down";
+      if(n <= -80) return "up";
+      return "neutral";
+    }
+    default:
+      // sma/ema/bbands/atr/adx 及其他冷門指標沒有明確方向性，不納入一致性判斷
+      return null;
+  }
+}
+
+// 依所有查到的指標方向，估算「技術結構」這一項該打幾分（0-5）
+// 邏輯：多個指標方向一致 → 結構清楚，分數高；方向分歧或都中性 → 結構混亂，分數低
+function suggestTechnicalScore(values){
+  const directions = [];
+  Object.keys(values || {}).forEach(key => {
+    const dir = getIndicatorDirection(key, values[key]);
+    if(dir !== null) directions.push(dir);
+  });
+  const total = directions.length;
+  if(total === 0) return null; // 所選指標都沒有方向性，無法建議
+
+  const upCount = directions.filter(d => d === "up").length;
+  const downCount = directions.filter(d => d === "down").length;
+  const neutralCount = directions.filter(d => d === "neutral").length;
+
+  if(total === 1){
+    if(neutralCount === 1){
+      return {score: 2, judge: "只選了 1 個有方向性的指標且呈現中性，訊號零散（建議多選幾個指標一起判斷）"};
+    }
+    return {score: 3, judge: "只選了 1 個有方向性的指標，有訊號但不完整（建議多選幾個指標一起確認）"};
+  }
+
+  if(upCount === total || downCount === total){
+    return {score: 5, judge: `所選 ${total} 個指標方向完全一致，結構清楚`};
+  }
+  const dominant = Math.max(upCount, downCount);
+  if(dominant / total >= 0.66){
+    return {score: 4, judge: `多數指標同向（${dominant}/${total}），結構漸清楚`};
+  }
+  if(neutralCount === total){
+    return {score: 1, judge: "所選指標都呈現中性，看不出方向，結構混亂"};
+  }
+  return {score: 2, judge: `指標方向分歧（偏多 ${upCount}、偏空 ${downCount}、中性 ${neutralCount}），訊號零散`};
+}
+
+// 把查詢用的代碼（例如 XAU/USD）跟評分列表裡的市場名稱（例如 XAUUSD）做寬鬆比對
+function normalizeForMatch(s){
+  return (s || "").toUpperCase().replace(/\//g, "");
+}
+function findMatchingMarket(symbolUsed){
+  const target = normalizeForMatch(symbolUsed);
+  if(!target) return null;
+  return markets.find(m => normalizeForMatch(m.name) === target) || null;
+}
+
 function renderIndicatorHistory(){
   if(indicatorHistory.length === 0){
     indicatorHistoryContainer.innerHTML = "";
@@ -1540,6 +1658,22 @@ function renderIndicatorHistory(){
     const errorNote = errorKeys.length
       ? `<p class="calendar-error" style="margin-top:6px;">${errorKeys.map(k => `${indicatorLabel(k)}：${ind.errors[k]}`).join("；")}</p>`
       : "";
+
+    const suggestion = suggestTechnicalScore(ind.values);
+    let suggestionHtml = "";
+    if(suggestion){
+      const matched = findMatchingMarket(ind.symbol_used);
+      suggestionHtml = `
+        <div class="tech-suggestion">
+          <span>💡 技術結構建議：<b>${suggestion.score} 分</b>（${escapeHtml(suggestion.judge)}）</span>
+          ${matched
+            ? `<button class="apply-suggestion-btn" data-market="${matched.id}" data-score="${suggestion.score}">套用到「${escapeHtml(matched.name)}」的技術結構</button>`
+            : `<span class="calendar-hint">（下方評分列表找不到「${escapeHtml(ind.symbol_used)}」，請先新增這個市場才能套用）</span>`
+          }
+        </div>
+      `;
+    }
+
     return `
       <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
         <p class="calendar-hint" style="margin-bottom:6px;">
@@ -1550,10 +1684,25 @@ function renderIndicatorHistory(){
           <tbody>${rows}</tbody>
         </table>
         ${errorNote}
+        ${suggestionHtml}
       </div>
     `;
   }).join("");
   indicatorHistoryContainer.innerHTML = blocks;
+
+  indicatorHistoryContainer.querySelectorAll(".apply-suggestion-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const marketId = btn.dataset.market;
+      const score = parseInt(btn.dataset.score, 10);
+      const m = markets.find(x => x.id === marketId);
+      if(m){
+        m.scores.technical = score;
+        render();
+        saveMarkets();
+        setIndicatorStatus(`已套用建議分數 ${score} 分到「${m.name}」的技術結構`, "calendar-hint");
+      }
+    });
+  });
 }
 
 async function queryIndicators(){
