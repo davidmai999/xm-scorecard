@@ -276,6 +276,25 @@
   .calendar-hint{font-size:12px;color:var(--text-dim);margin:0;}
   .calendar-error{font-size:12px;color:var(--red);margin:0;}
   .calendar-loading{font-size:12px;color:var(--text-dim);margin:0;}
+  .indicator-history-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:8px;
+  }
+  .close-history-btn{
+    flex-shrink:0;
+    padding:2px 8px;
+    font-size:12px;
+    line-height:1.4;
+    color:var(--text-dim);
+    background:transparent;
+    border:1px solid var(--border);
+  }
+  .close-history-btn:hover{
+    color:var(--red);
+    border-color:var(--red);
+  }
   .tech-suggestion{
     margin-top:8px;
     padding:8px 10px;
@@ -448,7 +467,7 @@
       </div>
     </div>
     <div class="calendar-body" id="indicatorBody">
-      <p class="calendar-hint" id="indicatorStatus">上方輸入框請填「商品代碼」（不是指標名稱），選好週期跟想查的指標後點「查詢指標」。勾選越多指標，一次查詢消耗的免費額度越多。查詢紀錄會保留在下方，不會被新查詢覆蓋。</p>
+      <p class="calendar-hint" id="indicatorStatus">上方輸入框請填「商品代碼」（不是指標名稱），選好週期跟想查的指標後點「查詢指標」。勾選越多指標，一次查詢消耗的免費額度越多。同一個商品重新查詢會自動取代舊結果，不同商品各自保留，每筆結果也可以按「✕」手動關閉。</p>
       <div id="indicatorHistoryContainer"></div>
     </div>
   </div>
@@ -609,7 +628,9 @@
           輸入商品代碼、選好週期（15分鐘／1小時／4小時／日線）後點「查詢指標」，會顯示 RSI 跟 MACD
           的數值跟白話判讀（例如「超買」「超賣」「偏多動能」「偏空動能」），對應評分表裡的<b>「技術結構」</b>
           這一項，可以當作參考依據之一，跟自己看圖表的判斷互相對照。跟即時報價共用同一組 Twelve Data
-          API Key，不用另外申請，查詢紀錄一樣會累積保留、不會被新查詢覆蓋。
+          API Key，不用另外申請。查不同商品的結果會分別保留在下方；
+          如果重新查詢<b>同一個商品</b>，舊的那筆結果會自動被最新的取代掉，不會一直往下疊。
+          每筆查詢結果右上角也有「✕」按鈕，看完可以隨手關掉，保持畫面簡潔。
         </p>
         <p class="guide-where">
           查完指標後，系統會依你勾選的指標方向是否一致，自動算出一個<b>「技術結構」建議分數</b>顯示在查詢結果下方
@@ -1675,10 +1696,13 @@ function renderIndicatorHistory(){
     }
 
     return `
-      <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-        <p class="calendar-hint" style="margin-bottom:6px;">
-          <b>${escapeHtml(ind.symbol_used || "-")}</b>　週期：${escapeHtml(ind.interval || "-")}　查詢時間：${escapeHtml(item.time)}
-        </p>
+      <div class="indicator-history-block" data-history-id="${item.id}" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+        <div class="indicator-history-head">
+          <p class="calendar-hint" style="margin-bottom:6px;">
+            <b>${escapeHtml(ind.symbol_used || "-")}</b>　週期：${escapeHtml(ind.interval || "-")}　查詢時間：${escapeHtml(item.time)}
+          </p>
+          <button type="button" class="close-history-btn" data-history-id="${item.id}" title="看完了，關閉這筆查詢結果">✕</button>
+        </div>
         <table class="calendar-table">
           <thead><tr><th>指標</th><th>數值</th><th>判讀</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -1689,6 +1713,13 @@ function renderIndicatorHistory(){
     `;
   }).join("");
   indicatorHistoryContainer.innerHTML = blocks;
+
+  indicatorHistoryContainer.querySelectorAll(".close-history-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      indicatorHistory = indicatorHistory.filter(item => item.id !== btn.dataset.historyId);
+      renderIndicatorHistory();
+    });
+  });
 
   indicatorHistoryContainer.querySelectorAll(".apply-suggestion-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1735,7 +1766,18 @@ async function queryIndicators(){
       return;
     }
     const now = new Date();
-    indicatorHistory.unshift({time: formatTimestamp(now), indicators: result.indicators});
+    const newSymbolUsed = result.indicators.symbol_used;
+    // 同一個商品代碼重新查詢時，先把舊的那筆刪掉，避免同一個商品疊出好幾筆查詢結果
+    if(newSymbolUsed){
+      indicatorHistory = indicatorHistory.filter(
+        item => normalizeForMatch(item.indicators.symbol_used) !== normalizeForMatch(newSymbolUsed)
+      );
+    }
+    indicatorHistory.unshift({
+      id: "ih" + Date.now() + Math.random().toString(16).slice(2),
+      time: formatTimestamp(now),
+      indicators: result.indicators,
+    });
     renderIndicatorHistory();
     const failCount = Object.keys(result.indicators.errors || {}).length;
     setIndicatorStatus(
