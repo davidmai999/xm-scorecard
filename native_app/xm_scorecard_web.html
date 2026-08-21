@@ -419,7 +419,7 @@
       </div>
     </div>
     <div class="calendar-body" id="calendarBody">
-      <p class="calendar-hint">點按鈕在瀏覽器開啟 Investing.com 財經日曆，查看近期經濟事件，幫助判斷事件風險這一項該打幾分。</p>
+      <p class="calendar-hint">點按鈕在瀏覽器開啟 XM 官網財經日曆，查看近期經濟事件，幫助判斷事件風險這一項該打幾分。</p>
     </div>
   </div>
 
@@ -609,7 +609,7 @@
         <h3>輔助工具怎麼用（財經日曆／即時報價）</h3>
         <p class="guide-q">🌐 財經日曆按鈕</p>
         <p class="guide-where">
-          點畫面上方「開啟財經日曆網站」，會直接用瀏覽器打開 Investing.com 財經日曆頁面，
+          點畫面上方「開啟財經日曆網站」，會直接用瀏覽器打開 XM 官網財經日曆頁面，
           不需要額外申請帳號，看畫面上近期的經濟事件，幫助判斷「事件風險」這一項該打幾分。
         </p>
         <p class="guide-q">💰 即時報價查詢</p>
@@ -724,7 +724,7 @@
           <tr><td>清空全部</td><td>刪掉目前列表裡所有的市場資料，會先跳出確認視窗，不用擔心手滑</td></tr>
           <tr><td>📖 填寫指南</td><td>說明五個評分項目分別該怎麼打分數，以及財經日曆／即時報價／策略指標這幾個輔助工具怎麼用</td></tr>
           <tr><td>📘 軟體使用說明</td><td>就是你現在正在看的這份說明</td></tr>
-          <tr><td>🌐 開啟財經日曆網站</td><td>用瀏覽器打開 Investing.com 財經日曆頁面，查看近期經濟事件</td></tr>
+          <tr><td>🌐 開啟財經日曆網站</td><td>用瀏覽器打開 XM 官網財經日曆頁面，查看近期經濟事件</td></tr>
           <tr><td>🔗 前往申請 API Key</td><td>用瀏覽器打開 Twelve Data 免費註冊頁面（即時報價、策略指標功能需要用到）</td></tr>
           <tr><td>設定 API Key</td><td>把申請好的 Twelve Data API Key 貼上去儲存，貼一次即可，即時報價跟策略指標共用同一組</td></tr>
           <tr><td>查詢報價 / 全部重新查詢</td><td>查單一商品的即時報價／把已加入列表的商品全部重新查一次</td></tr>
@@ -1126,7 +1126,7 @@ document.getElementById("settingsSaveBtn").addEventListener("click", async () =>
 });
 
 // ---------- 財經日曆（外部連結，不透過 API） ----------
-const CALENDAR_URL = "https://hk.investing.com/economic-calendar";
+const CALENDAR_URL = "https://www.xm.com/tw/economic-calendar";
 
 document.getElementById("openCalendarBtn").addEventListener("click", async () => {
   if(hasNativeBridge()){
