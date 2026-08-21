@@ -39,6 +39,12 @@
     gap:10px;
   }
   .page-header h1{margin:0;}
+  .header-links{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    align-items:flex-end;
+  }
   .external-link-btn{
     display:inline-block;
     font-size:12px;
@@ -430,7 +436,10 @@
 <div class="wrap">
   <div class="page-header">
     <h1>市場選擇五濾網評分系統</h1>
-    <a href="#" id="xmToolsLink" class="external-link-btn">🔗 XM Trading Central</a>
+    <div class="header-links">
+      <a href="#" id="xmToolsLink" class="external-link-btn">🔗 XM Trading Central</a>
+      <a href="#" id="xmRegisterLink" class="external-link-btn">📝 加入 XM 會員</a>
+    </div>
   </div>
   <p class="subtitle">每個市場逐項評分 0-5 分：市場焦點、消息品質、市場觀點、技術結構為加分項（滿分 20 分），事件風險為扣分項（風險越高扣越多）。系統會自動排出「今日市場觀察優先順序」。16-20 分為優先觀察，10-15 分為次要觀察，9 分以下暫時放掉。</p>
 
@@ -1168,20 +1177,29 @@ document.getElementById("openCalendarBtn").addEventListener("click", async () =>
   }
 });
 
-// ---------- 頁面右上角：XM Trading Central 外部連結 ----------
+// ---------- 頁面右上角：XM 官網外部連結 ----------
 const XM_TOOLS_URL = "https://www.xm.com/tw/analytical-tools";
+const XM_REGISTER_URL = "https://www.xm.com/tw/register/profile-account";
 
-document.getElementById("xmToolsLink").addEventListener("click", async (e) => {
-  e.preventDefault();
+async function openExternalLink(url){
   if(hasNativeBridge()){
     try{
-      await window.pywebview.api.open_external(XM_TOOLS_URL);
+      await window.pywebview.api.open_external(url);
     }catch(e){
-      window.open(XM_TOOLS_URL, "_blank");
+      window.open(url, "_blank");
     }
   }else{
-    window.open(XM_TOOLS_URL, "_blank");
+    window.open(url, "_blank");
   }
+}
+
+document.getElementById("xmToolsLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  openExternalLink(XM_TOOLS_URL);
+});
+document.getElementById("xmRegisterLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  openExternalLink(XM_REGISTER_URL);
 });
 
 // ---------- 即時報價查詢 ----------
