@@ -31,6 +31,28 @@
   }
   .wrap{max-width:1040px;margin:0 auto;}
   h1{font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:.5px;}
+  .page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .page-header h1{margin:0;}
+  .external-link-btn{
+    display:inline-block;
+    font-size:12px;
+    color:var(--accent);
+    text-decoration:none;
+    padding:6px 12px;
+    border:1px solid var(--accent-dim);
+    border-radius:6px;
+    white-space:nowrap;
+  }
+  .external-link-btn:hover{
+    background:var(--accent);
+    color:#1a1408;
+  }
   .subtitle{color:var(--text-dim);font-size:13px;line-height:1.6;margin:0 0 20px;max-width:760px;}
   .filters{
     display:grid;
@@ -406,7 +428,10 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>市場選擇五濾網評分系統（簡易版）</h1>
+  <div class="page-header">
+    <h1>市場選擇五濾網評分系統（簡易版）</h1>
+    <a href="https://www.xm.com/tw/analytical-tools" target="_blank" rel="noopener" class="external-link-btn">🔗 XM Trading Central</a>
+  </div>
   <p class="subtitle">每個市場逐項評分 0-5 分：市場焦點、消息品質、市場觀點、技術結構為加分項（滿分 20 分），事件風險為扣分項（風險越高扣越多）。系統會自動排出「今日市場觀察優先順序」。16-20 分為優先觀察，10-15 分為次要觀察，9 分以下暫時放掉。<br>（這是簡易版，只保留市場評分核心功能，不含財經日曆／即時報價／策略指標等需要額外申請 API Key 的輔助工具。）</p>
 
   <div class="filters" id="filterRef"></div>
