@@ -464,6 +464,11 @@
         </div>
         <button id="indicatorSettingsBtn">設定 API Key</button>
         <button class="primary" id="indicatorQueryBtn">查詢指標</button>
+        <label class="toggle-switch" title="開啟後，查詢成功會自動把該商品加入下方市場列表">
+          <input type="checkbox" id="indicatorAutoAddToggle">
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">查詢後自動加入市場</span>
+        </label>
       </div>
     </div>
     <div class="calendar-body" id="indicatorBody">
@@ -1145,6 +1150,22 @@ const quoteHistoryContainer = document.getElementById("quoteHistoryContainer");
 const TWELVEDATA_APPLY_URL = "https://twelvedata.com/register";
 let quoteHistory = [];
 
+// 把一筆新報價加進歷史紀錄：同一個商品代碼重新查詢時，先把舊的那筆刪掉，
+// 避免同一個商品疊出好幾筆查詢結果；每筆都給一個唯一 id，方便手動關閉。
+function addQuoteToHistory(time, quote){
+  const symbolUsed = quote && (quote.symbol_used || quote.symbol);
+  if(symbolUsed){
+    quoteHistory = quoteHistory.filter(
+      item => normalizeForMatch(item.quote.symbol_used || item.quote.symbol) !== normalizeForMatch(symbolUsed)
+    );
+  }
+  quoteHistory.unshift({
+    id: "qh" + Date.now() + Math.random().toString(16).slice(2),
+    time,
+    quote,
+  });
+}
+
 document.getElementById("quoteSettingsBtn").addEventListener("click", () => openSettingsModal("twelvedata"));
 
 document.getElementById("quoteApplyBtn").addEventListener("click", async () => {
@@ -1201,17 +1222,24 @@ function renderQuoteHistory(){
         <td>${fmtNum(q.low)}</td>
         <td>${fmtNum(q.open)}</td>
         <td>${fmtNum(q.previous_close)}</td>
+        <td><button type="button" class="close-history-btn" data-quote-history-id="${item.id}" title="看完了，關閉這筆查詢結果">✕</button></td>
       </tr>
     `;
   }).join("");
   quoteHistoryContainer.innerHTML = `
     <table class="calendar-table">
       <thead>
-        <tr><th>查詢時間</th><th>代碼</th><th>現價</th><th>漲跌</th><th>漲跌%</th><th>今日高</th><th>今日低</th><th>開盤</th><th>昨收</th></tr>
+        <tr><th>查詢時間</th><th>代碼</th><th>現價</th><th>漲跌</th><th>漲跌%</th><th>今日高</th><th>今日低</th><th>開盤</th><th>昨收</th><th></th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
   `;
+  quoteHistoryContainer.querySelectorAll(".close-history-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      quoteHistory = quoteHistory.filter(item => item.id !== btn.dataset.quoteHistoryId);
+      renderQuoteHistory();
+    });
+  });
 }
 
 async function queryQuote(){
@@ -1238,7 +1266,7 @@ async function queryQuote(){
     }
 
     const now = new Date();
-    quoteHistory.unshift({time: formatTimestamp(now), quote: result.quote});
+    addQuoteToHistory(formatTimestamp(now), result.quote);
     renderQuoteHistory();
 
     // 開關開啟時，查詢成功後自動把該商品加入下方市場列表
@@ -1304,7 +1332,7 @@ async function refreshAllQuotes(){
         failCount++;
       }else{
         const now = new Date();
-        quoteHistory.unshift({time: formatTimestamp(now), quote: result.quote});
+        addQuoteToHistory(formatTimestamp(now), result.quote);
         renderQuoteHistory();
         successCount++;
       }
@@ -1780,10 +1808,17 @@ async function queryIndicators(){
     });
     renderIndicatorHistory();
     const failCount = Object.keys(result.indicators.errors || {}).length;
-    setIndicatorStatus(
-      `查詢成功（${formatTimestamp(now)}）${failCount > 0 ? `，其中 ${failCount} 項指標查詢失敗` : ""}`,
-      failCount > 0 ? "calendar-error" : "calendar-hint"
-    );
+    let statusText = `查詢成功（${formatTimestamp(now)}）${failCount > 0 ? `，其中 ${failCount} 項指標查詢失敗` : ""}`;
+    // 開關開啟時，查詢成功後自動把該商品加入下方市場列表
+    if(document.getElementById("indicatorAutoAddToggle").checked && newSymbolUsed){
+      const addResult = addMarket(symbol);
+      if(addResult === "added"){
+        statusText += `，已自動加入市場：${symbol}`;
+      }else if(addResult === "duplicate"){
+        statusText += `，市場「${symbol}」已存在，未重複加入`;
+      }
+    }
+    setIndicatorStatus(statusText, failCount > 0 ? "calendar-error" : "calendar-hint");
   }catch(e){
     setIndicatorStatus(`呼叫失敗：${String(e)}`, "calendar-error");
   }
@@ -1804,6 +1839,14 @@ const autoAddToggle = document.getElementById("autoAddToggle");
 getSavedKey(AUTO_ADD_STORAGE).then(v => { autoAddToggle.checked = v === "1"; });
 autoAddToggle.addEventListener("change", () => {
   saveKey(AUTO_ADD_STORAGE, autoAddToggle.checked ? "1" : "0");
+});
+
+// 策略指標面板也有同樣的開關，狀態分開記住
+const INDICATOR_AUTO_ADD_STORAGE = "xm_scorecard_indicator_auto_add_toggle";
+const indicatorAutoAddToggle = document.getElementById("indicatorAutoAddToggle");
+getSavedKey(INDICATOR_AUTO_ADD_STORAGE).then(v => { indicatorAutoAddToggle.checked = v === "1"; });
+indicatorAutoAddToggle.addEventListener("change", () => {
+  saveKey(INDICATOR_AUTO_ADD_STORAGE, indicatorAutoAddToggle.checked ? "1" : "0");
 });
 
 if(!hasNativeBridge()){
