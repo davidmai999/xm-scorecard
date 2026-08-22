@@ -39,6 +39,14 @@
     gap:10px;
   }
   .page-header h1{margin:0;}
+  .header-right{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+  }
+  .xm-logo-link{display:inline-block;line-height:0;}
+  .xm-logo{height:28px;width:auto;display:block;}
   .header-links{
     display:flex;
     flex-direction:column;
@@ -436,9 +444,14 @@
 <div class="wrap">
   <div class="page-header">
     <h1>市場選擇五濾網評分系統（簡易版）</h1>
-    <div class="header-links">
-      <a href="https://www.xm.com/tw/analytical-tools" target="_blank" rel="noopener" class="external-link-btn">🔗 XM Trading Central</a>
-      <a href="https://www.xm.com/tw/register/profile-account" target="_blank" rel="noopener" class="external-link-btn">📝 加入 XM 會員</a>
+    <div class="header-right">
+      <a href="https://www.xm.com/tw/about" target="_blank" rel="noopener" class="xm-logo-link" title="前往 XM 官網">
+        <img class="xm-logo" src="data:image/png;base64,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" alt="XM logo">
+      </a>
+      <div class="header-links">
+        <a href="https://www.xm.com/tw/analytical-tools" target="_blank" rel="noopener" class="external-link-btn">🔗 XM Trading Central</a>
+        <a href="https://www.xm.com/tw/register/profile-account" target="_blank" rel="noopener" class="external-link-btn">📝 加入 XM 會員</a>
+      </div>
     </div>
   </div>
   <p class="subtitle">每個市場逐項評分 0-5 分：市場焦點、消息品質、市場觀點、技術結構為加分項（滿分 20 分），事件風險為扣分項（風險越高扣越多）。系統會自動排出「今日市場觀察優先順序」。16-20 分為優先觀察，10-15 分為次要觀察，9 分以下暫時放掉。<br>（這是簡易版，只保留市場評分核心功能，不含財經日曆／即時報價／策略指標等需要額外申請 API Key 的輔助工具。）</p>
