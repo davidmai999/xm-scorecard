@@ -1,3 +1,41 @@
 name: Build Windows Offline App
-on: {workflow_dispatch: null, push: {branches: [main], paths: [native_app/**]}}
-jobs: {build: {runs-on: windows-latest, steps: [{name: Checkout, uses: actions/checkout@v4}, {name: Setup Python, uses: actions/setup-python@v5, with: {python-version: '3.12'}}, {name: Install deps, run: 'pip install pywebview pyinstaller requests'}, {name: Build exe, working-directory: native_app, run: 'pyinstaller --onefile --windowed --name "XM-Scorecard-Offline" --add-data "xm_scorecard_web.html;." app.py'}, {name: Upload artifact, uses: actions/upload-artifact@v4, with: {name: XM-Scorecard-Windows-Offline, path: native_app/dist/*.exe}}]}}
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [native_app/**]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install pywebview pyinstaller requests
+
+      - name: Build exe (完整版)
+        working-directory: native_app
+        run: pyinstaller --onefile --windowed --name "XM-Scorecard-Offline" --add-data "xm_scorecard_web.html;." app.py
+
+      - name: Upload artifact (完整版)
+        uses: actions/upload-artifact@v4
+        with:
+          name: XM-Scorecard-Windows-Offline
+          path: native_app/dist/XM-Scorecard-Offline.exe
+
+      - name: Build exe (精簡版 v2)
+        working-directory: native_app
+        run: pyinstaller --onefile --windowed --name "XM-Scorecard-V2-Offline" --add-data "xm_scorecard_web_v2.html;." app_v2.py
+
+      - name: Upload artifact (精簡版 v2)
+        uses: actions/upload-artifact@v4
+        with:
+          name: XM-Scorecard-V2-Windows-Offline
+          path: native_app/dist/XM-Scorecard-V2-Offline.exe
