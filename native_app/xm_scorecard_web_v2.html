@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>市場選擇五濾網評分系統</title>
+<style>
+  :root{
+    --bg:#12161c;
+    --panel:#1a2029;
+    --panel-alt:#20283a;
+    --border:#2a3242;
+    --text:#e7ebf1;
+    --text-dim:#8b93a3;
+    --accent:#d4a24e;
+    --accent-dim:#8a6a2f;
+    --green:#3ecf8e;
+    --green-bg:#173226;
+    --amber:#e0b04a;
+    --amber-bg:#332812;
+    --red:#e2605c;
+    --red-bg:#331817;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+    padding:32px 20px 60px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+  h1{font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:.5px;}
+  .page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .page-header h1{margin:0;}
+  .header-right{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+  }
+  .xm-logo-link{display:inline-block;line-height:0;}
+  .xm-logo{height:28px;width:auto;display:block;}
+  .header-links{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    align-items:flex-end;
+  }
+  .external-link-btn{
+    display:inline-block;
+    font-size:12px;
+    color:var(--accent);
+    text-decoration:none;
+    padding:6px 12px;
+    border:1px solid var(--accent-dim);
+    border-radius:6px;
+    white-space:nowrap;
+  }
+  .external-link-btn:hover{
+    background:var(--accent);
+    color:#1a1408;
+  }
+  .subtitle{color:var(--text-dim);font-size:13px;line-height:1.6;margin:0 0 20px;max-width:760px;}
+  .filters{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:10px;
+    margin-bottom:20px;
+  }
+  .filter-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  .filter-card .name{font-size:12px;font-weight:600;color:var(--accent);}
+  .filter-card .tool{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center;}
+  input[type=text]{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 12px;
+    border-radius:6px;
+    font-size:13px;
+    width:200px;
+  }
+  button{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 14px;
+    border-radius:6px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  button:hover{border-color:var(--accent);}
+  button.primary{background:var(--accent);color:#1a1408;border-color:var(--accent);font-weight:600;}
+  button.primary:hover{opacity:.9;}
+  .market-list{display:flex;flex-direction:column;gap:10px;}
+  .market-row{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 16px;
+  }
+  .market-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .market-name{font-size:16px;font-weight:600;font-family:"Consolas","JetBrains Mono",monospace;}
+  .status-badge{
+    font-size:12px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:20px;
+  }
+  .status-priority{background:var(--green-bg);color:var(--green);}
+  .status-secondary{background:var(--amber-bg);color:var(--amber);}
+  .status-drop{background:var(--red-bg);color:var(--red);}
+  .meter{
+    display:flex;
+    gap:3px;
+    height:10px;
+    margin-bottom:12px;
+  }
+  .meter span{flex:1;border-radius:2px;background:var(--border);}
+  .meter span.filled-priority{background:var(--green);}
+  .meter span.filled-secondary{background:var(--amber);}
+  .meter span.filled-drop{background:var(--red);}
+  .criteria-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:10px;
+  }
+  .note-block{margin-top:12px;}
+  .note-label{font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;}
+  .note-input{
+    width:100%;
+    min-height:44px;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    padding:8px 10px;
+    font-size:12px;
+    font-family:"Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+    resize:vertical;
+  }
+  .note-input:focus{outline:none;border-color:var(--accent);}
+  .criterion{text-align:center;}
+  .criterion .label{font-size:11px;color:var(--text-dim);margin-bottom:6px;min-height:28px;}
+  .score-btns{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;max-width:90px;margin:0 auto;}
+  .score-btn{
+    width:26px;height:24px;
+    padding:0;
+    font-family:"Consolas","JetBrains Mono",monospace;
+    font-size:12px;
+  }
+  .score-btn.active{background:var(--accent);color:#1a1408;border-color:var(--accent);font-weight:700;}
+  .row-footer{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:12px;padding-top:10px;border-top:1px solid var(--border);
+  }
+  .total{font-family:"Consolas","JetBrains Mono",monospace;font-size:14px;color:var(--text-dim);}
+  .total b{color:var(--text);font-size:16px;}
+  .remove-btn{color:var(--red);border-color:var(--red);font-size:12px;padding:4px 10px;}
+  .empty{
+    color:var(--text-dim);
+    text-align:center;
+    padding:40px 20px;
+    border:1px dashed var(--border);
+    border-radius:10px;
+    font-size:13px;
+  }
+  .disclaimer{
+    margin-top:24px;
+    font-size:12px;
+    color:var(--text-dim);
+    border-top:1px solid var(--border);
+    padding-top:14px;
+    line-height:1.6;
+  }
+  .calendar-panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 16px;
+    margin-bottom:18px;
+  }
+  .calendar-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .calendar-title{font-size:14px;font-weight:600;color:var(--accent);}
+  .calendar-controls{display:flex;gap:8px;align-items:center;}
+  .toggle-switch{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    color:var(--text-dim);
+    cursor:pointer;
+    user-select:none;
+  }
+  .toggle-switch input{display:none;}
+  .toggle-slider{
+    position:relative;
+    width:34px;
+    height:18px;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:20px;
+    transition:background .2s, border-color .2s;
+    flex-shrink:0;
+  }
+  .toggle-slider::before{
+    content:"";
+    position:absolute;
+    top:1px;
+    left:1px;
+    width:14px;
+    height:14px;
+    background:var(--text-dim);
+    border-radius:50%;
+    transition:transform .2s, background .2s;
+  }
+  .toggle-switch input:checked + .toggle-slider{
+    background:var(--accent-dim);
+    border-color:var(--accent);
+  }
+  .toggle-switch input:checked + .toggle-slider::before{
+    transform:translateX(16px);
+    background:var(--accent);
+  }
+  .toggle-switch:hover .toggle-label{color:var(--text);}
+  select{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:7px 10px;
+    border-radius:6px;
+    font-size:12px;
+  }
+  .symbol-picker{max-width:150px;}
+  .multi-select{position:relative;}
+  .multi-select-panel{
+    display:none;
+    position:absolute;
+    top:calc(100% + 4px);
+    left:0;
+    z-index:20;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px;
+    width:340px;
+    max-height:380px;
+    overflow-y:auto;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .multi-select-panel.active{display:block;}
+  .multi-select-search{
+    width:100%;
+    margin-bottom:6px;
+    padding:6px 8px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    font-size:12px;
+  }
+  .multi-select-loadall{
+    width:100%;
+    margin-bottom:6px;
+    font-size:11px;
+    padding:6px 8px;
+  }
+  .multi-select-group-label{
+    font-size:11px;
+    color:var(--text-dim);
+    font-weight:600;
+    padding:6px 4px 2px;
+    text-transform:uppercase;
+  }
+  .multi-select-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 4px;
+    font-size:12px;
+    cursor:pointer;
+    border-radius:4px;
+  }
+  .multi-select-item:hover{background:var(--panel);}
+  .multi-select-item input{cursor:pointer;}
+  .calendar-hint{font-size:12px;color:var(--text-dim);margin:0;}
+  .calendar-error{font-size:12px;color:var(--red);margin:0;}
+  .calendar-loading{font-size:12px;color:var(--text-dim);margin:0;}
+  .indicator-history-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:8px;
+  }
+  .close-history-btn{
+    flex-shrink:0;
+    padding:2px 8px;
+    font-size:12px;
+    line-height:1.4;
+    color:var(--text-dim);
+    background:transparent;
+    border:1px solid var(--border);
+  }
+  .close-history-btn:hover{
+    color:var(--red);
+    border-color:var(--red);
+  }
+  .tech-suggestion{
+    margin-top:8px;
+    padding:8px 10px;
+    background:var(--panel-alt);
+    border:1px solid var(--accent-dim);
+    border-radius:6px;
+    font-size:12px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  }
+  .tech-suggestion .apply-suggestion-btn{
+    font-size:11px;
+    padding:4px 10px;
+    background:var(--accent);
+    color:#1a1408;
+    border-color:var(--accent);
+    font-weight:600;
+  }
+  .calendar-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;}
+  .calendar-table th{
+    text-align:left;color:var(--text-dim);font-weight:500;
+    padding:6px 8px;border-bottom:1px solid var(--border);
+  }
+  .calendar-table td{padding:6px 8px;border-bottom:1px solid var(--border);}
+  .impact-high{color:var(--red);font-weight:600;}
+  .impact-medium{color:var(--amber);font-weight:600;}
+  .impact-low{color:var(--text-dim);}
+  .settings-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    z-index:1001;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .settings-overlay.active{display:flex;}
+  .settings-modal{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    max-width:440px;
+    width:100%;
+    padding:20px;
+  }
+  .settings-modal h3{margin:0 0 8px;font-size:15px;}
+  .settings-modal p{font-size:12px;color:var(--text-dim);line-height:1.6;margin:0 0 10px;}
+  .settings-modal input{width:100%;margin-bottom:12px;}
+  .settings-modal-actions{display:flex;justify-content:flex-end;gap:8px;}
+  .guide-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    z-index:1000;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .guide-overlay.active{display:flex;}
+  .guide-modal{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    max-width:720px;
+    width:100%;
+    max-height:85vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .guide-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:16px 20px;
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .guide-header h2{font-size:16px;margin:0;font-weight:600;}
+  .guide-close{
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:16px;
+    cursor:pointer;
+    padding:4px 8px;
+  }
+  .guide-close:hover{color:var(--text);}
+  .guide-body{
+    padding:16px 20px 24px;
+    overflow-y:auto;
+    font-size:13px;
+    line-height:1.7;
+  }
+  .guide-order{color:var(--accent);font-weight:600;margin:12px 0 20px;}
+  .guide-section{margin-bottom:22px;}
+  .guide-section h3{font-size:14px;color:var(--accent);margin:0 0 8px;}
+  .guide-q{font-weight:600;margin:6px 0;}
+  .guide-where{color:var(--text-dim);margin:0 0 10px;}
+  .guide-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px;}
+  .guide-table td{border:1px solid var(--border);padding:6px 10px;vertical-align:top;}
+  .guide-table td:first-child{width:36px;text-align:center;font-weight:600;color:var(--accent);}
+  .guide-table-total td:first-child{width:90px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-header">
+    <h1>市場選擇五濾網評分系統</h1>
+    <div class="header-right">
+      <a href="#" id="xmLogoLink" class="xm-logo-link" title="前往 XM 官網">
+        <img class="xm-logo" src="data:image/png;base64,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" alt="XM logo">
+      </a>
+      <div class="header-links">
+        <a href="#" id="xmToolsLink" class="external-link-btn">🔗 XM Trading Central</a>
+        <a href="#" id="xmRegisterLink" class="external-link-btn">📝 加入 XM 會員</a>
+      </div>
+    </div>
+  </div>
+  <p class="subtitle">每個市場逐項評分 0-5 分：市場焦點、消息品質、市場觀點、技術結構為加分項（滿分 20 分），事件風險為扣分項（風險越高扣越多）。系統會自動排出「今日市場觀察優先順序」。16-20 分為優先觀察，10-15 分為次要觀察，9 分以下暫時放掉。</p>
+
+  <div class="filters" id="filterRef"></div>
+
+  <div class="calendar-panel" id="calendarPanel">
+    <div class="calendar-head">
+      <span class="calendar-title">財經日曆（事件風險參考）</span>
+      <div class="calendar-controls">
+        <button class="primary" id="openCalendarBtn">🌐 開啟財經日曆網站</button>
+      </div>
+    </div>
+    <div class="calendar-body" id="calendarBody">
+      <p class="calendar-hint">點按鈕在瀏覽器開啟 XM 官網財經日曆，查看近期經濟事件，幫助判斷事件風險這一項該打幾分。</p>
+    </div>
+  </div>
+
+
+
+  <div class="toolbar">
+    <input type="text" id="newMarketName" placeholder="輸入市場名稱，例如 XAUUSD">
+    <select id="newMarketPicker" class="symbol-picker"></select>
+    <button class="primary" id="addBtn">＋ 新增市場</button>
+    <button id="sortBtn">📊 依總分排序</button>
+    <button id="exportBtn">匯出 CSV</button>
+    <button id="clearBtn">清空全部</button>
+    <button id="guideBtn">📖 填寫指南</button>
+    <button id="manualBtn">📘 軟體使用說明</button>
+  </div>
+
+  <div class="market-list" id="marketList"></div>
+  <div class="empty" id="emptyState">尚無市場資料，輸入市場名稱後點「＋ 新增市場」開始評分。</div>
+
+  <div class="disclaimer">
+    此評分法不是交易訊號，也不是獲利保證；它只是幫助把市場選擇從感覺，轉換成可討論、可重複的流程。<br>
+    資料僅儲存在目前瀏覽器內（重新整理仍會保留，但不會同步到其他裝置或帳號）。
+  </div>
+</div>
+
+<div class="guide-overlay" id="guideOverlay">
+  <div class="guide-modal">
+    <div class="guide-header">
+      <h2>市場選擇五濾網評分系統｜新手填寫指南</h2>
+      <button id="guideCloseBtn" class="guide-close">✕</button>
+    </div>
+    <div class="guide-body">
+      <p>不需要每一項都找到 Trading Central 的畫面佐證才能打分，<b>憑當下看盤的直覺判斷也完全可以</b>——評分表的重點是把「感覺」轉換成「數字」，方便討論跟比較，不是要你做學術研究。</p>
+      <p class="guide-order">建議填寫順序：市場焦點 → 消息品質 → 市場觀點 → 技術結構 → 事件風險</p>
+
+      <div class="guide-section">
+        <h3>① 市場焦點（對應 TC Market Buzz）</h3>
+        <p class="guide-q">先問自己：今天市場正在看誰？這個商品熱不熱門？</p>
+        <p class="guide-where">去哪裡看：Market Buzz 分頁的新聞提及次數或熱度儀表板；沒有工具在手邊，就回想今天新聞、社群有沒有一直提到它。</p>
+        <table class="guide-table">
+          <tr><td>0</td><td>完全沒人討論，翻遍新聞也找不到相關消息</td></tr>
+          <tr><td>1</td><td>幾乎沒熱度，偶爾才看到一則相關新聞</td></tr>
+          <tr><td>2</td><td>略有關注，零星幾則新聞或討論</td></tr>
+          <tr><td>3</td><td>有一定關注，新聞量算平均水準</td></tr>
+          <tr><td>4</td><td>頗受矚目，新聞量明顯比平常多</td></tr>
+          <tr><td>5</td><td>明顯熱門，整天新聞都圍繞著它，儀表板標示「熱點」</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>② 消息品質（對應 TC Newsdesk）</h3>
+        <p class="guide-q">先問自己：這個市場為什麼被關注？是有明確原因，還是只是雜訊？</p>
+        <p class="guide-where">去哪裡看：Newsdesk 或財經新聞版面，看最近幾則新聞是不是圍繞同一個主題。</p>
+        <table class="guide-table">
+          <tr><td>0</td><td>完全零散，看不出主題，也沒有明確消息面</td></tr>
+          <tr><td>1</td><td>消息零散，新聞之間關聯性很低</td></tr>
+          <tr><td>2</td><td>略有題材但不集中，隱約看得出方向但不強烈</td></tr>
+          <tr><td>3</td><td>有題材但不夠集中，主題浮現但仍混雜雜訊</td></tr>
+          <tr><td>4</td><td>題材漸明確，大多數新聞圍繞同一主軸</td></tr>
+          <tr><td>5</td><td>題材明確，幾乎所有新聞都指向同一個清楚原因</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>③ 市場觀點（對應 Crowd Insight）</h3>
+        <p class="guide-q">先問自己：市場主流看法是偏多還是偏空？看法會不會太一致、太擁擠？</p>
+        <p class="guide-where">去哪裡看：Crowd Insight 多空比例，或觀察社群、聊天室裡大家的方向感。</p>
+        <table class="guide-table">
+          <tr><td>0</td><td>情緒極度混亂或過熱，多空比例接近一面倒（如 90%/10%）</td></tr>
+          <tr><td>1</td><td>情緒混亂或過熱，市場看法很極端</td></tr>
+          <tr><td>2</td><td>觀點分歧需留意，看不出明確共識</td></tr>
+          <tr><td>3</td><td>有方向但需確認，多數人偏一邊但沒有過度擁擠</td></tr>
+          <tr><td>4</td><td>觀點漸清楚，方向感明確且比例還算健康</td></tr>
+          <tr><td>5</td><td>觀點清楚且不過度擁擠，方向明確但沒有過熱風險</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>④ 技術結構（對應 Technical Insight / Views）</h3>
+        <p class="guide-q">先問自己：圖表方向清不清楚？有沒有明確的型態或指標訊號？</p>
+        <p class="guide-where">去哪裡看：Featured Ideas 的技術型態卡片，看型態＋指標是否雙重確認。</p>
+        <table class="guide-table">
+          <tr><td>0</td><td>結構完全混亂，看不出任何型態或方向</td></tr>
+          <tr><td>1</td><td>結構混亂，圖表雜訊很多</td></tr>
+          <tr><td>2</td><td>訊號零散，隱約有跡象但不成型</td></tr>
+          <tr><td>3</td><td>有訊號但不完整，型態出現但缺乏指標確認</td></tr>
+          <tr><td>4</td><td>結構漸清楚，有明確型態＋至少一個指標同向確認</td></tr>
+          <tr><td>5</td><td>結構清楚，型態、指標、價格位置都指向同一方向</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>⑤ 事件風險（對應 Economic Insight，扣分項）</h3>
+        <p class="guide-q">先問自己：接下來有沒有重大事件？會不會因為一則消息瞬間翻盤？</p>
+        <p class="guide-where">去哪裡看：經濟日曆，篩選相關貨幣，看未來 24 小時是否有高影響力事件。</p>
+        <p class="guide-where"><b>注意：這一項跟其他四項方向相反。</b>分數代表「風險程度」，分數越高風險越大，而且會直接從總分裡扣掉，不是加分。</p>
+        <table class="guide-table">
+          <tr><td>0</td><td>暫無高風險事件，近期經濟日曆很乾淨（不扣分）</td></tr>
+          <tr><td>1</td><td>風險偏低，事件不多且影響力不大</td></tr>
+          <tr><td>2</td><td>有事件但可控（事件還有一段時間，或影響力中等）</td></tr>
+          <tr><td>3</td><td>有事件，需留意（今天稍晚有中等重要性數據）</td></tr>
+          <tr><td>4</td><td>重大事件太近，風險高（幾小時內有高影響力數據）</td></tr>
+          <tr><td>5</td><td>重大事件迫近，風險極高（例如 1 小時內就要公布央行決議，扣 5 分）</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>總分怎麼解讀</h3>
+        <p class="guide-where">
+          總分 = （市場焦點 + 消息品質 + 市場觀點 + 技術結構）− 事件風險。
+          前四項滿分共 20 分，事件風險只會往下扣，所以總分上限是 20 分，
+          如果事件風險偏高，總分也可能扣到很低甚至變成負數，代表這個市場現在風險太大、先避開比較好。
+        </p>
+        <table class="guide-table guide-table-total">
+          <tr><td>16–20 分</td><td>今日優先觀察市場</td></tr>
+          <tr><td>10–15 分</td><td>次要觀察市場</td></tr>
+          <tr><td>9 分以下</td><td>暫時放掉或等待</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>輔助工具怎麼用（財經日曆）</h3>
+        <p class="guide-q">🌐 財經日曆按鈕</p>
+        <p class="guide-where">
+          點畫面上方「開啟財經日曆網站」，會直接用瀏覽器打開 XM 官網財經日曆頁面，
+          不需要額外申請帳號，看畫面上近期的經濟事件，幫助判斷「事件風險」這一項該打幾分。
+        </p>
+      </div>
+
+      <div class="guide-section">
+        <h3>新手常見疑問</h3>
+        <p><b>Q：五項一定要每項都找到工具佐證嗎？</b><br>不用。找不到資料時，憑當下盤感或經驗直接給分也可以。</p>
+        <p><b>Q：卡在某一項找不到資料怎麼辦？</b><br>先跳過，把找得到的項目填完，之後有空再補，不用為了湊分數硬找。</p>
+        <p><b>Q：這個分數等於保證獲利嗎？</b><br>不是。評分表只是幫助排出「今天比較值得觀察」的優先順序，不是交易訊號，也不是獲利保證。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="guide-overlay" id="manualOverlay">
+  <div class="guide-modal">
+    <div class="guide-header">
+      <h2>軟體使用說明｜從零開始上手</h2>
+      <button id="manualCloseBtn" class="guide-close">✕</button>
+    </div>
+    <div class="guide-body">
+      <p>這份說明是寫給<b>完全沒用過這套軟體的人</b>看的，照著順序看下去，不需要任何背景知識也能學會操作。</p>
+
+      <div class="guide-section">
+        <h3>這是什麼軟體？</h3>
+        <p class="guide-where">
+          這是一套幫助判斷「今天要優先觀察哪些市場」的評分工具。每個市場（例如黃金、歐元美元）依照五個項目各打 0-5 分，
+          系統會自動算出總分，總分越高代表越值得優先關注。<b>它不是自動交易軟體，不會幫你下單，也不保證獲利</b>，
+          純粹是幫助整理思路、方便記錄跟討論的小工具。
+        </p>
+      </div>
+
+      <div class="guide-section">
+        <h3>第一次打開軟體，跳出「Windows 已保護您的電腦」怎麼辦？</h3>
+        <p class="guide-where">
+          這是正常現象，不是病毒警告。因為這個軟體是新做的、沒有花錢申請微軟的「數位簽章」，
+          Windows 系統看到「來路不明的新程式」就會提醒一下，跟安全性沒有直接關係。處理方式：
+        </p>
+        <table class="guide-table">
+          <tr><td>1</td><td>看到藍色視窗寫「Windows 已保護您的電腦」，點左下角的「其他資訊」（藍色底線文字）</td></tr>
+          <tr><td>2</td><td>點開後畫面會多一個按鈕，叫「仍要執行」</td></tr>
+          <tr><td>3</td><td>點「仍要執行」，軟體就會正常打開</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>畫面總覽：每個區塊在幹嘛</h3>
+        <p class="guide-where">打開軟體後，畫面由上到下大致分成這幾塊：</p>
+        <table class="guide-table">
+          <tr><td>①</td><td>五個評分項目說明卡片——提醒每一項對應要用哪個工具參考</td></tr>
+          <tr><td>②</td><td>財經日曆——一顆按鈕，點下去用瀏覽器開啟外部財經日曆網站</td></tr>
+          <tr><td>③</td><td>新增市場工具列——輸入市場名稱、新增到下方評分列表</td></tr>
+          <tr><td>④</td><td>市場評分列表——每個市場一張卡片，五個項目各打分數</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>新手第一次使用，照這個順序做</h3>
+        <table class="guide-table">
+          <tr><td>1</td><td>畫面最下方的輸入框，輸入你想評分的市場名稱（例如 <code>XAUUSD</code> 代表黃金），點「＋ 新增市場」</td></tr>
+          <tr><td>2</td><td>畫面上會多出一張這個市場的卡片，五個項目（市場焦點、消息品質、市場觀點、技術結構、事件風險）分別點選 0-5 分</td></tr>
+          <tr><td>3</td><td>每個分數按鈕滑鼠停留一下，會顯示這個分數大概代表什麼情況，當作打分參考</td></tr>
+          <tr><td>4</td><td>五項都打完後，卡片右下角會顯示「總分」，畫面上方的「填寫指南」按鈕裡有總分的解讀說明（優先觀察／次要觀察／暫時放掉）</td></tr>
+          <tr><td>5</td><td>如果想留下這次評分的紀錄，點「快速筆記」輸入框寫下判斷理由</td></tr>
+          <tr><td>6</td><td>想匯出成 Excel 可以打開的檔案，點「匯出 CSV」</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>各按鈕功能一覽</h3>
+        <table class="guide-table">
+          <tr><td>＋ 新增市場</td><td>把輸入框裡打的市場名稱加進下方評分列表</td></tr>
+          <tr><td>📊 依總分排序</td><td>把市場列表依目前總分由高到低排一次，平常改分數不會自動跳動，想看排名再按這顆</td></tr>
+          <tr><td>匯出 CSV</td><td>把目前所有市場的評分結果存成一個檔案，可以用 Excel 打開，會自動依總分排序</td></tr>
+          <tr><td>清空全部</td><td>刪掉目前列表裡所有的市場資料，會先跳出確認視窗，不用擔心手滑</td></tr>
+          <tr><td>📖 填寫指南</td><td>說明五個評分項目分別該怎麼打分數，以及財經日曆這個輔助工具怎麼用</td></tr>
+          <tr><td>📘 軟體使用說明</td><td>就是你現在正在看的這份說明</td></tr>
+          <tr><td>🌐 開啟財經日曆網站</td><td>用瀏覽器打開 XM 官網財經日曆頁面，查看近期經濟事件</td></tr>
+        </table>
+      </div>
+
+      <div class="guide-section">
+        <h3>常見問題</h3>
+        <p><b>Q：資料存在哪裡？重開電腦會不會不見？</b><br>資料存在這台電腦目前使用的軟體裡，重新整理不會不見，但如果換電腦或重灌系統，資料不會跟著過去。</p>
+        <p><b>Q：可以同時開很多市場評分嗎？</b><br>可以，市場數量沒有限制，新增幾個都可以同時放在列表裡。</p>
+        <p><b>Q：分數打錯了可以改嗎？</b><br>可以，直接點其他分數按鈕就會換成新的分數，不用先刪除重新輸入。</p>
+        <p><b>Q：想刪掉某一個市場，不是全部清空，怎麼辦？</b><br>每張市場卡片右下角有一個「刪除」按鈕，只會刪掉那一個市場。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CRITERIA = [
+  {key:"market_buzz", name:"市場焦點", tool:"TC Market Buzz", hints:["完全沒熱度","幾乎沒熱度","略有關注","有一定關注","頗受矚目","明顯熱門"]},
+  {key:"newsdesk", name:"消息品質", tool:"TC Newsdesk", hints:["完全零散無題材","消息零散","略有題材不集中","有題材但不夠集中","題材漸明確","題材明確"]},
+  {key:"crowd_insight", name:"市場觀點", tool:"Crowd Insight", hints:["情緒極度混亂或過熱","情緒混亂或過熱","觀點分歧需留意","有方向但需確認","觀點漸清楚","觀點清楚不擁擠"]},
+  {key:"technical", name:"技術結構", tool:"Technical Insight", hints:["結構完全混亂","結構混亂","訊號零散","有訊號不完整","結構漸清楚","結構清楚"]},
+  {key:"event_risk", name:"事件風險（扣分項）", tool:"Economic Insight", hints:["暫無高風險事件","風險偏低","有事件但可控","有事件，需留意","重大事件太近，風險高","重大事件迫近，風險極高"]},
+];
+
+// 常見外匯／貴金屬品種快選清單（分組），選了會自動帶入對應文字輸入框，
+// 文字框本身仍可自行手動輸入查詢，兩種方式並存。
+const FOREX_PRODUCTS = [
+  {group: "主要貨幣對", items: [
+    {value: "EURUSD", label: "EURUSD 歐元／美元"},
+    {value: "GBPUSD", label: "GBPUSD 英鎊／美元"},
+    {value: "USDJPY", label: "USDJPY 美元／日圓"},
+    {value: "USDCHF", label: "USDCHF 美元／瑞士法郎"},
+    {value: "USDCAD", label: "USDCAD 美元／加幣"},
+    {value: "AUDUSD", label: "AUDUSD 澳幣／美元"},
+    {value: "NZDUSD", label: "NZDUSD 紐幣／美元"},
+  ]},
+  {group: "交叉貨幣對", items: [
+    {value: "EURGBP", label: "EURGBP 歐元／英鎊"},
+    {value: "EURJPY", label: "EURJPY 歐元／日圓"},
+    {value: "GBPJPY", label: "GBPJPY 英鎊／日圓"},
+    {value: "AUDJPY", label: "AUDJPY 澳幣／日圓"},
+    {value: "EURAUD", label: "EURAUD 歐元／澳幣"},
+    {value: "GBPCHF", label: "GBPCHF 英鎊／瑞士法郎"},
+    {value: "CHFJPY", label: "CHFJPY 瑞士法郎／日圓"},
+    {value: "EURCAD", label: "EURCAD 歐元／加幣"},
+  ]},
+  {group: "貴金屬", items: [
+    {value: "XAUUSD", label: "黃金 GOLD／美元"},
+    {value: "XAGUSD", label: "白銀 SILVER／美元"},
+  ]},
+  {group: "能源", items: [
+    {value: "WTIUSD", label: "原油 OIL／美元"},
+  ]},
+];
+
+// 幫某個 <select> 填入品種清單，並綁定「選了就把值帶進目標文字框」的行為
+function setupSymbolPicker(selectId, targetInputId){
+  const select = document.getElementById(selectId);
+  if(!select) return;
+  const optionsHtml = FOREX_PRODUCTS.map(g => `
+    <optgroup label="${escapeHtml(g.group)}">
+      ${g.items.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}
+    </optgroup>
+  `).join("");
+  select.innerHTML = `<option value="">— 快選外匯品種 —</option>${optionsHtml}`;
+  select.addEventListener("change", () => {
+    if(!select.value) return;
+    const target = document.getElementById(targetInputId);
+    target.value = select.value;
+    target.focus();
+    select.value = ""; // 選完重置，方便下次還能再選同一個或不同的
+  });
+}
+
+let markets = [];
+const STORAGE_KEY = "xm_scorecard_markets";
+
+// 事件風險改成扣分項後，滿分不再是 25，而是前四項加總的滿分 20
+// （事件風險只會往下扣，不會讓總分超過 20）。
+const MAX_TOTAL = 20;
+
+function classify(total){
+  if(total >= 16) return {text:"今日優先觀察市場", cls:"priority"};
+  if(total >= 10) return {text:"次要觀察市場", cls:"secondary"};
+  return {text:"暫時放掉或等待", cls:"drop"};
+}
+
+async function loadMarkets(){
+  try{
+    if(window.storage){
+      const res = await window.storage.get(STORAGE_KEY, false);
+      if(res && res.value){
+        markets = JSON.parse(res.value);
+        return;
+      }
+    }
+  }catch(e){}
+  try{
+    const local = localStorage.getItem(STORAGE_KEY);
+    if(local) markets = JSON.parse(local);
+  }catch(e){}
+}
+
+async function saveMarkets(){
+  try{
+    if(window.storage){
+      await window.storage.set(STORAGE_KEY, JSON.stringify(markets), false);
+      return;
+    }
+  }catch(e){}
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(markets)); }catch(e){}
+}
+
+function renderFilterRef(){
+  const el = document.getElementById("filterRef");
+  el.innerHTML = CRITERIA.map(c => `
+    <div class="filter-card">
+      <div class="name">${c.name}</div>
+      <div class="tool">${c.tool}</div>
+    </div>
+  `).join("");
+}
+
+function render(){
+  const list = document.getElementById("marketList");
+  const empty = document.getElementById("emptyState");
+
+  // 注意：畫面顯示故意「不」依分數排序，維持新增順序，
+  // 避免點分數按鈕時列表跳動、難以操作。
+  // 「今日優先觀察順序」仍會反映在每張卡片的狀態標籤／進度條顏色上，
+  // 真正的優先順序排序保留在「匯出 CSV」裡（exportCsv 函式有自己的排序）。
+  const sorted = markets;
+
+  if(sorted.length === 0){
+    list.innerHTML = "";
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  list.innerHTML = sorted.map(m => {
+    const t = total(m);
+    const status = classify(t);
+    const filledSegs = Math.round((t / MAX_TOTAL) * 10);
+    const meterSegs = Array.from({length:10}, (_, i) =>
+      `<span class="${i < filledSegs ? 'filled-'+status.cls : ''}"></span>`
+    ).join("");
+
+    const criteriaHtml = CRITERIA.map(c => {
+      const val = m.scores[c.key];
+      const btns = [0,1,2,3,4,5].map(s => `
+        <button class="score-btn ${val===s?'active':''}" data-market="${m.id}" data-key="${c.key}" data-score="${s}" title="${c.hints[s]}">${s}</button>
+      `).join("");
+      return `
+        <div class="criterion">
+          <div class="label">${c.name}</div>
+          <div class="score-btns">${btns}</div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="market-row">
+        <div class="market-head">
+          <span class="market-name">${escapeHtml(m.name)}</span>
+          <span class="status-badge status-${status.cls}">${status.text}</span>
+        </div>
+        <div class="meter">${meterSegs}</div>
+        <div class="criteria-grid">${criteriaHtml}</div>
+        <div class="note-block">
+          <label class="note-label">快速筆記</label>
+          <textarea class="note-input" data-note="${m.id}" placeholder="記下當下看到的判斷理由，方便之後回想或備課...">${escapeHtml(m.note || "")}</textarea>
+        </div>
+        <div class="row-footer">
+          <span class="total">總分 <b>${t}</b> / ${MAX_TOTAL}</span>
+          <button class="remove-btn" data-remove="${m.id}">刪除</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll(".note-input").forEach(area => {
+    area.addEventListener("change", () => {
+      const m = markets.find(x => x.id === area.dataset.note);
+      if(m){
+        m.note = area.value;
+        saveMarkets();
+      }
+    });
+  });
+
+  list.querySelectorAll(".score-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.market;
+      const key = btn.dataset.key;
+      const score = parseInt(btn.dataset.score, 10);
+      const m = markets.find(x => x.id === id);
+      if(m){
+        m.scores[key] = score;
+        render();
+        saveMarkets();
+      }
+    });
+  });
+
+  list.querySelectorAll("[data-remove]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      markets = markets.filter(m => m.id !== btn.dataset.remove);
+      render();
+      saveMarkets();
+    });
+  });
+}
+
+function total(m){
+  // 事件風險是扣分項：0=無風險（不扣分）、5=風險極高（扣 5 分），
+  // 其餘四項是加分項，越高越好。總分 = 前四項加總 − 事件風險分數。
+  let sum = 0;
+  CRITERIA.forEach(c => {
+    const score = m.scores[c.key] || 0;
+    if(c.key === "event_risk"){
+      sum -= score;
+    }else{
+      sum += score;
+    }
+  });
+  return sum;
+}
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function addMarket(nameOverride){
+  const isAuto = nameOverride !== undefined;
+  const input = document.getElementById("newMarketName");
+  const name = isAuto ? nameOverride.trim() : input.value.trim();
+  if(!name) return "empty";
+  if(markets.some(m => m.name.toLowerCase() === name.toLowerCase())){
+    if(!isAuto) alert("市場「" + name + "」已存在");
+    return "duplicate";
+  }
+  const scores = {};
+  CRITERIA.forEach(c => scores[c.key] = 0);
+  markets.push({id: "m" + Date.now() + Math.random().toString(16).slice(2), name, scores, note: ""});
+  if(!isAuto) input.value = "";
+  render();
+  saveMarkets();
+  return "added";
+}
+
+function exportCsv(){
+  if(markets.length === 0){
+    alert("目前沒有市場資料可匯出");
+    return;
+  }
+  const headers = ["市場", ...CRITERIA.map(c => c.name), "總分", "今日觀察優先順序", "快速筆記"];
+  const rows = [...markets].sort((a,b) => total(b) - total(a)).map(m => {
+    const t = total(m);
+    const status = classify(t);
+    return [m.name, ...CRITERIA.map(c => m.scores[c.key]), t, status.text, m.note || ""];
+  });
+  const csv = "\uFEFF" + [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "市場觀察優先順序.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearAll(){
+  if(markets.length === 0) return;
+  if(confirm("確定要清空所有市場資料嗎？")){
+    markets = [];
+    render();
+    saveMarkets();
+  }
+}
+
+function sortByScore(){
+  if(markets.length === 0) return;
+  // 只在按下按鈕的當下排序一次，之後改分數不會又自動跳動，
+  // 想重新排就再按一次。
+  markets.sort((a, b) => total(b) - total(a));
+  render();
+  saveMarkets();
+}
+
+document.getElementById("addBtn").addEventListener("click", () => addMarket());
+document.getElementById("newMarketName").addEventListener("keydown", e => {
+  if(e.key === "Enter") addMarket();
+});
+document.getElementById("sortBtn").addEventListener("click", sortByScore);
+document.getElementById("exportBtn").addEventListener("click", exportCsv);
+document.getElementById("clearBtn").addEventListener("click", clearAll);
+
+const guideOverlay = document.getElementById("guideOverlay");
+document.getElementById("guideBtn").addEventListener("click", () => {
+  guideOverlay.classList.add("active");
+});
+document.getElementById("guideCloseBtn").addEventListener("click", () => {
+  guideOverlay.classList.remove("active");
+});
+guideOverlay.addEventListener("click", e => {
+  if(e.target === guideOverlay) guideOverlay.classList.remove("active");
+});
+
+const manualOverlay = document.getElementById("manualOverlay");
+document.getElementById("manualBtn").addEventListener("click", () => {
+  manualOverlay.classList.add("active");
+});
+document.getElementById("manualCloseBtn").addEventListener("click", () => {
+  manualOverlay.classList.remove("active");
+});
+manualOverlay.addEventListener("click", e => {
+  if(e.target === manualOverlay) manualOverlay.classList.remove("active");
+});
+
+// ---------- 財經日曆（外部連結，不透過 API） ----------
+function hasNativeBridge(){
+  return !!(window.pywebview && window.pywebview.api);
+}
+
+const CALENDAR_URL = "https://www.xm.com/tw/economic-calendar";
+
+document.getElementById("openCalendarBtn").addEventListener("click", async () => {
+  if(hasNativeBridge()){
+    try{
+      const result = await window.pywebview.api.open_external(CALENDAR_URL);
+      if(!result || !result.ok){
+        calendarBody.innerHTML = `<p class="calendar-error">開啟失敗：${escapeHtml(result && result.error || "未知錯誤")}</p>`;
+      }
+    }catch(e){
+      calendarBody.innerHTML = `<p class="calendar-error">開啟失敗：${escapeHtml(String(e))}</p>`;
+    }
+  }else{
+    window.open(CALENDAR_URL, "_blank");
+  }
+});
+
+// ---------- 頁面右上角：XM 官網外部連結 ----------
+const XM_TOOLS_URL = "https://www.xm.com/tw/analytical-tools";
+const XM_REGISTER_URL = "https://www.xm.com/tw/register/profile-account";
+const XM_ABOUT_URL = "https://www.xm.com/tw/about";
+
+async function openExternalLink(url){
+  if(hasNativeBridge()){
+    try{
+      await window.pywebview.api.open_external(url);
+    }catch(e){
+      window.open(url, "_blank");
+    }
+  }else{
+    window.open(url, "_blank");
+  }
+}
+
+document.getElementById("xmToolsLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  openExternalLink(XM_TOOLS_URL);
+});
+document.getElementById("xmRegisterLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  openExternalLink(XM_REGISTER_URL);
+});
+document.getElementById("xmLogoLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  openExternalLink(XM_ABOUT_URL);
+});
+
+renderFilterRef();
+loadMarkets().then(render);
+setupSymbolPicker("newMarketPicker", "newMarketName");
+</script>
+</body>
+</html>
