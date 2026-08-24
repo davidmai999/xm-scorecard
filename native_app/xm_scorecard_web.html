@@ -840,11 +840,31 @@ const FOREX_PRODUCTS = [
   ]},
 ];
 
+// 「新增市場」專用的品種清單：市場名稱只是評分表上的顯示標籤，不會拿去查價，
+// 所以貴金屬／能源這幾項直接用最好認的英文名稱（GOLD／SILVER／OIL），
+// 不用像即時報價／策略指標那邊一定要用 Twelve Data 認得的 XAUUSD 這種代碼。
+const MARKET_NAME_PRODUCTS = FOREX_PRODUCTS.map(g => {
+  if(g.group === "貴金屬"){
+    return {group: g.group, items: [
+      {value: "GOLD", label: "黃金 GOLD"},
+      {value: "SILVER", label: "白銀 SILVER"},
+    ]};
+  }
+  if(g.group === "能源"){
+    return {group: g.group, items: [
+      {value: "OIL", label: "原油 OIL"},
+    ]};
+  }
+  return g;
+});
+
 // 幫某個 <select> 填入品種清單，並綁定「選了就把值帶進目標文字框」的行為
-function setupSymbolPicker(selectId, targetInputId){
+// products：要使用哪一份品種清單，預設是 FOREX_PRODUCTS（查價用，代碼要跟 Twelve Data 對得起來）
+function setupSymbolPicker(selectId, targetInputId, products){
+  const list = products || FOREX_PRODUCTS;
   const select = document.getElementById(selectId);
   if(!select) return;
-  const optionsHtml = FOREX_PRODUCTS.map(g => `
+  const optionsHtml = list.map(g => `
     <optgroup label="${escapeHtml(g.group)}">
       ${g.items.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}
     </optgroup>
@@ -1932,7 +1952,7 @@ if(!hasNativeBridge()){
 
 renderFilterRef();
 loadMarkets().then(render);
-setupSymbolPicker("newMarketPicker", "newMarketName");
+setupSymbolPicker("newMarketPicker", "newMarketName", MARKET_NAME_PRODUCTS);
 setupSymbolPicker("quoteSymbolPicker", "quoteSymbolInput");
 setupSymbolPicker("indicatorSymbolPicker", "indicatorSymbolInput");
 </script>
