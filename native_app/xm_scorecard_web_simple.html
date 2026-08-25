@@ -617,15 +617,17 @@ const FOREX_PRODUCTS = [
     {value: "EURCAD", label: "EURCAD 歐元／加幣"},
   ]},
   {group: "貴金屬", items: [
-    {value: "XAUUSD", label: "黃金 GOLD／美元"},
-    {value: "XAGUSD", label: "白銀 SILVER／美元"},
+    {value: "GOLD", label: "黃金 GOLD"},
+    {value: "SILVER", label: "白銀 SILVER"},
   ]},
   {group: "能源", items: [
-    {value: "WTIUSD", label: "原油 OIL／美元"},
+    {value: "OIL", label: "原油 OIL"},
   ]},
 ];
 
 // 幫某個 <select> 填入品種清單，並綁定「選了就把值帶進目標文字框」的行為
+// 這個版本只有「新增市場」一個用途，市場名稱只是評分表上的顯示標籤、不會拿去查價，
+// 所以貴金屬／能源直接用最好認的英文名稱（GOLD／SILVER／OIL）。
 function setupSymbolPicker(selectId, targetInputId){
   const select = document.getElementById(selectId);
   if(!select) return;
